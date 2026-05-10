@@ -201,7 +201,7 @@ export function ReaderApp() {
                             "flex flex-col gap-2 rounded-xl px-2 py-2 transition-colors",
                             active
                               ? "bg-[color:var(--glass-active)]"
-                              : "hover:bg-white/5",
+                              : "hover:bg-[color:var(--hover-row)]",
                           )}
                         >
                           {editingId === f.id ? (
@@ -263,7 +263,7 @@ export function ReaderApp() {
                                 </GlassButton>
                                 <GlassButton
                                   type="button"
-                                  className="text-xs text-rose-200"
+                                  className="text-xs text-rose-600"
                                   onClick={() => {
                                     removeFeed(f.id);
                                     if (selectedId === f.id) {
@@ -299,7 +299,7 @@ export function ReaderApp() {
                       href={feedData.link}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="text-xs text-sky-200 underline-offset-2 hover:underline"
+                      className="text-xs text-sky-700 underline-offset-2 hover:underline"
                     >
                       打开站点主页
                     </a>
@@ -313,7 +313,7 @@ export function ReaderApp() {
               </div>
 
               {error && (
-                <div className="mx-4 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-50">
+                <div className="mx-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
                   {error}
                 </div>
               )}
@@ -338,7 +338,7 @@ export function ReaderApp() {
                             "w-full rounded-xl px-3 py-3 text-left transition-colors",
                             isActive
                               ? "bg-[color:var(--glass-active)]"
-                              : "hover:bg-white/5",
+                              : "hover:bg-[color:var(--hover-row)]",
                           )}
                         >
                           <p className="text-sm font-medium text-[color:var(--text)]">

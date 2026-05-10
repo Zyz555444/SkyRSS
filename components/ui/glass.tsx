@@ -31,7 +31,7 @@ export function GlassButton({
       type="button"
       className={cn(
         "glass-button inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
         "disabled:pointer-events-none disabled:opacity-45",
         className,
       )}
@@ -51,7 +51,7 @@ export function GlassInput({
       className={cn(
         "glass-input w-full rounded-xl border px-3 py-2 text-sm transition-[border-color,box-shadow]",
         "placeholder:text-[color:var(--muted)]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
         className,
       )}
       {...rest}
@@ -68,7 +68,7 @@ export function GlassLink({
     <a
       className={cn(
         "glass-button inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium no-underline transition-colors",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
         className,
       )}
       {...rest}
