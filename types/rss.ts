@@ -2,8 +2,16 @@
 export type RssItemJson = {
   title: string;
   link?: string;
+  /** 稳定标识，用于列表 key 与选中态（部分源提供） */
+  guid?: string;
   pubDate?: string;
+  /** ISO 8601，便于格式化展示 */
+  isoDate?: string;
+  categories?: string[];
+  author?: string;
   contentSnippet?: string;
+  /** 已在服务端白名单清洗的 HTML，可配合 dangerouslySetInnerHTML */
+  contentHtml?: string;
 };
 
 export type RssFeedJson = {
