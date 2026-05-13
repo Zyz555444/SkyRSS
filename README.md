@@ -1,4 +1,4 @@
-# SkyRSS（Glass RSS）
+# SkyRSS
 
 基于 **Next.js** 的在线 RSS 阅读器：玻璃拟态界面、在浏览器中管理订阅，并通过服务端接口拉取与解析订阅源。
 
