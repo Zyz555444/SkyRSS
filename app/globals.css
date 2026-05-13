@@ -102,6 +102,21 @@ body {
   margin-top: 0.75em;
 }
 
+.article-body strong,
+.article-body b {
+  font-weight: 700;
+}
+
+.article-body em,
+.article-body i {
+  font-style: italic;
+}
+
+.article-body u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .article-body a {
   color: rgb(3 105 161);
   text-decoration: underline;
@@ -145,4 +160,11 @@ body {
 .article-body td {
   border: 1px solid var(--glass-border);
   padding: 0.35rem 0.5rem;
+}
+
+/* 阅读区正文栏：限制行长 */
+.article-reading-shell {
+  width: 100%;
+  max-width: 65ch;
+  margin-inline: auto;
 }
