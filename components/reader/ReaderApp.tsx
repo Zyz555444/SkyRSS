@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   GlassButton,
   GlassInput,
@@ -82,6 +88,17 @@ export function ReaderApp() {
     () => new Set(),
   );
 
+  const [isLg, setIsLg] = useState(false);
+  const [mobileShowReader, setMobileShowReader] = useState(false);
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setIsLg(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   const categoryGroups = useMemo(() => {
     if (!feedData?.items.length) return [];
     const map = new Map<string, RssItemJson[]>();
@@ -104,6 +121,7 @@ export function ReaderApp() {
       const json = await fetchFeedJson(url);
       setFeedData(json);
       setActiveItem(null);
+      setMobileShowReader(false);
       setExpandedGroups(initialExpandedGroups(json));
     } catch (e) {
       setFeedData(null);
@@ -137,6 +155,7 @@ export function ReaderApp() {
       setSelectedId(null);
       setFeedData(null);
       setActiveItem(null);
+      setMobileShowReader(false);
     });
   }, [feeds, selectedId]);
 
@@ -152,6 +171,7 @@ export function ReaderApp() {
       setSelectedId(entry.id);
       setFeedData(json);
       setActiveItem(null);
+      setMobileShowReader(false);
       setExpandedGroups(initialExpandedGroups(json));
       setSidebarOpen(false);
     } catch (e) {
@@ -186,7 +206,7 @@ export function ReaderApp() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted)]">
-            Glass RSS
+            Sky RSS
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text)]">
             在线 RSS 阅读
@@ -214,11 +234,17 @@ export function ReaderApp() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 gap-4",
+          "min-h-[50vh] grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(260px,280px)_minmax(280px,0.38fr)_minmax(0,1fr)]",
+          "lg:items-stretch",
+        )}
+      >
         <aside
           id="feed-sidebar"
           className={cn(
-            "flex w-full shrink-0 flex-col gap-3 lg:w-72",
+            "flex min-h-0 w-full shrink-0 flex-col gap-3 lg:w-72",
             sidebarOpen ? "flex" : "hidden lg:flex",
           )}
         >
@@ -335,6 +361,8 @@ export function ReaderApp() {
                                   if (selectedId === f.id) {
                                     setSelectedId(null);
                                     setFeedData(null);
+                                    setActiveItem(null);
+                                    setMobileShowReader(false);
                                   }
                                 }}
                               >
@@ -352,8 +380,12 @@ export function ReaderApp() {
           </GlassPanel>
         </aside>
 
-        <div className="flex min-h-[50vh] flex-1 flex-col gap-4 lg:min-h-0 lg:flex-row">
-          <GlassPanel className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden p-0 lg:max-w-md lg:shrink-0 xl:max-w-lg">
+        <GlassPanel
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0",
+            !isLg && mobileShowReader && activeItem && "hidden",
+          )}
+        >
             <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[color:var(--glass-border)] px-4 py-3">
               <div className="min-w-0">
                 <p className="text-xs text-[color:var(--muted)]">当前频道</p>
@@ -422,7 +454,10 @@ export function ReaderApp() {
                           <li key={key}>
                             <button
                               type="button"
-                              onClick={() => setActiveItem(item)}
+                              onClick={() => {
+                                setActiveItem(item);
+                                setMobileShowReader(true);
+                              }}
                               className={cn(
                                 "w-full rounded-xl px-3 py-2.5 text-left transition-colors",
                                 isActive
@@ -476,17 +511,34 @@ export function ReaderApp() {
                 )}
               {!feedData && !loading && !error && (
                 <p className="px-3 py-10 text-center text-sm text-[color:var(--muted)]">
-                  请选择左侧订阅，或添加新的 RSS 地址。
+                  请选择订阅栏中的源，或添加新的 RSS 地址。
                 </p>
               )}
             </div>
           </GlassPanel>
 
-          <GlassPanel className="flex min-h-[280px] min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0 lg:min-h-0">
-            <div className="shrink-0 border-b border-[color:var(--glass-border)] px-4 py-3">
-              <p className="text-xs text-[color:var(--muted)]">阅读</p>
-              {activeItem ? (
-                <>
+          <GlassPanel
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0",
+              "min-h-[min(70dvh,560px)] lg:min-h-0",
+              !isLg && (!activeItem || !mobileShowReader) && "hidden",
+            )}
+          >
+            {activeItem ? (
+              <>
+                <div className="sticky top-0 z-10 shrink-0 border-b border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] px-4 py-3 backdrop-blur-md">
+                  {!isLg && mobileShowReader && (
+                    <div className="mb-2">
+                      <GlassButton
+                        type="button"
+                        className="w-full text-sm sm:w-auto"
+                        onClick={() => setMobileShowReader(false)}
+                      >
+                        ← 返回列表
+                      </GlassButton>
+                    </div>
+                  )}
+                  <p className="text-xs text-[color:var(--muted)]">阅读</p>
                   <h3 className="mt-0.5 text-base font-semibold leading-snug text-[color:var(--text)]">
                     {activeItem.title}
                   </h3>
@@ -516,36 +568,34 @@ export function ReaderApp() {
                         ))}
                       </div>
                     )}
-                </>
-              ) : (
-                <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  在左侧列表中选择一篇文章，在此阅读正文或摘要。
-                </p>
-              )}
-            </div>
-
-            {activeItem && (
-              <>
-                <div className="article-body min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                  {activeItem.contentHtml ? (
-                    <div
-                      // 已由 /api/rss 使用 sanitize-html 清洗
-                      dangerouslySetInnerHTML={{
-                        __html: activeItem.contentHtml,
-                      }}
-                    />
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="whitespace-pre-wrap text-[color:var(--text)]">
-                        {activeItem.contentSnippet?.trim() ||
-                          "（此条目无摘要与正文 HTML，可能仅在原站提供全文。）"}
-                      </p>
-                      <p className="text-xs text-[color:var(--muted)]">
-                        部分订阅源仅在 RSS 中提供摘要；若需评论或原站样式，请使用下方按钮。
-                      </p>
-                    </div>
-                  )}
                 </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <div className="article-reading-shell px-4 py-4">
+                    <div className="article-body">
+                      {activeItem.contentHtml ? (
+                        <div
+                          // 已由 /api/rss 使用 sanitize-html 清洗
+                          dangerouslySetInnerHTML={{
+                            __html: activeItem.contentHtml,
+                          }}
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="whitespace-pre-wrap text-[color:var(--text)]">
+                            {activeItem.contentSnippet?.trim() ||
+                              "（此条目无摘要与正文 HTML，可能仅在原站提供全文。）"}
+                          </p>
+                          <p className="text-xs text-[color:var(--muted)]">
+                            部分订阅源仅在 RSS
+                            中提供摘要；纯文本摘要无法显示加粗等格式。若需原站样式，请使用下方按钮。
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {activeItem.link && (
                   <div className="shrink-0 border-t border-[color:var(--glass-border)] px-4 py-3">
                     <GlassLink
@@ -559,9 +609,15 @@ export function ReaderApp() {
                   </div>
                 )}
               </>
+            ) : (
+              <div className="shrink-0 border-b border-[color:var(--glass-border)] px-4 py-3">
+                <p className="text-xs text-[color:var(--muted)]">阅读</p>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  在条目列表中选择一篇文章，在此阅读正文或摘要。
+                </p>
+              </div>
             )}
           </GlassPanel>
-        </div>
       </div>
     </div>
   );
