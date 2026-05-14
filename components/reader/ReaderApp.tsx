@@ -1,5 +1,6 @@
 "use client";
 
+import { SignInButton, useAuth, UserButton } from "@clerk/nextjs";
 import {
   useCallback,
   useEffect,
@@ -67,7 +68,19 @@ function initialExpandedGroups(feed: RssFeedJson): Set<string> {
 }
 
 export function ReaderApp() {
-  const { feeds, addFeed, removeFeed, updateFeedTitle } = useFeeds();
+  const {
+    feeds,
+    addFeed,
+    removeFeed,
+    updateFeedTitle,
+    importLocalFeedsToCloud,
+    feedSource,
+    cloudLoading,
+    cloudError,
+    localFeedCount,
+    authLoading,
+  } = useFeeds();
+  const { isSignedIn, isLoaded: clerkLoaded } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -85,6 +98,7 @@ export function ReaderApp() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [importingLocal, setImportingLocal] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     () => new Set(),
   );
@@ -167,7 +181,7 @@ export function ReaderApp() {
     setError(null);
     try {
       const json = await fetchFeedJson(normalized);
-      const entry = addFeed({ url: normalized, title: json.title });
+      const entry = await addFeed({ url: normalized, title: json.title });
       setNewUrl("");
       setSelectedId(entry.id);
       setFeedData(json);
@@ -187,11 +201,27 @@ export function ReaderApp() {
     setEditDraft(title);
   }, []);
 
-  const commitEdit = useCallback(() => {
+  const commitEdit = useCallback(async () => {
     if (!editingId) return;
-    updateFeedTitle(editingId, editDraft);
-    setEditingId(null);
+    try {
+      await updateFeedTitle(editingId, editDraft);
+      setEditingId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "重命名失败");
+    }
   }, [editDraft, editingId, updateFeedTitle]);
+
+  const handleImportLocalToCloud = useCallback(async () => {
+    setImportingLocal(true);
+    setError(null);
+    try {
+      await importLocalFeedsToCloud();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "导入失败");
+    } finally {
+      setImportingLocal(false);
+    }
+  }, [importLocalFeedsToCloud]);
 
   const itemIsActive = useCallback(
     (item: RssItemJson) => activeItem !== null && itemsMatch(activeItem, item),
@@ -213,25 +243,37 @@ export function ReaderApp() {
             在线 RSS 阅读
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <GlassButton
-            className="lg:hidden"
-            type="button"
-            aria-expanded={sidebarOpen}
-            aria-controls="feed-sidebar"
-            onClick={() => setSidebarOpen((v) => !v)}
-          >
-            {sidebarOpen ? "收起订阅" : "订阅栏"}
-          </GlassButton>
-          {selected && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <GlassButton
+              className="lg:hidden"
               type="button"
-              onClick={() => void refresh(selected.url)}
-              disabled={loading}
+              aria-expanded={sidebarOpen}
+              aria-controls="feed-sidebar"
+              onClick={() => setSidebarOpen((v) => !v)}
             >
-              刷新当前源
+              {sidebarOpen ? "收起订阅" : "订阅栏"}
             </GlassButton>
-          )}
+            {selected && (
+              <GlassButton
+                type="button"
+                onClick={() => void refresh(selected.url)}
+                disabled={loading}
+              >
+                刷新当前源
+              </GlassButton>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2 border-l border-[color:var(--glass-border)] pl-2">
+            {clerkLoaded && !isSignedIn && (
+              <SignInButton mode="modal">
+                <GlassButton type="button" disabled={authLoading}>
+                  {authLoading ? "…" : "登录以同步订阅"}
+                </GlassButton>
+              </SignInButton>
+            )}
+            {clerkLoaded && isSignedIn && <UserButton />}
+          </div>
         </div>
       </header>
 
@@ -271,12 +313,34 @@ export function ReaderApp() {
             >
               {adding ? "验证并添加…" : "添加订阅"}
             </GlassButton>
+            {clerkLoaded && isSignedIn && localFeedCount > 0 && (
+              <GlassButton
+                type="button"
+                className="w-full"
+                onClick={() => void handleImportLocalToCloud()}
+                disabled={importingLocal}
+              >
+                {importingLocal
+                  ? "正在导入本地订阅…"
+                  : "将本地订阅导入云端"}
+              </GlassButton>
+            )}
           </GlassPanel>
 
           <GlassPanel className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-0">
             <div className="border-b border-[color:var(--glass-border)] px-4 py-3 text-sm font-medium text-[color:var(--text)]">
               我的订阅 ({feeds.length})
+              {feedSource === "cloud" && cloudLoading && (
+                <span className="ml-2 text-xs font-normal text-[color:var(--muted)]">
+                  云端加载中…
+                </span>
+              )}
             </div>
+            {feedSource === "cloud" && cloudError && (
+              <div className="mx-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-50">
+                {cloudError}
+              </div>
+            )}
             <ul className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2">
               {feeds.length === 0 ? (
                 <li className="px-2 py-6 text-center text-sm text-[color:var(--muted)]">
@@ -303,7 +367,7 @@ export function ReaderApp() {
                               aria-label="编辑订阅标题"
                               autoFocus
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") commitEdit();
+                                if (e.key === "Enter") void commitEdit();
                                 if (e.key === "Escape") setEditingId(null);
                               }}
                             />
@@ -311,7 +375,7 @@ export function ReaderApp() {
                               <GlassButton
                                 type="button"
                                 className="flex-1"
-                                onClick={commitEdit}
+                                onClick={() => void commitEdit()}
                               >
                                 保存
                               </GlassButton>
@@ -358,13 +422,23 @@ export function ReaderApp() {
                                 type="button"
                                 className="text-xs text-rose-600"
                                 onClick={() => {
-                                  removeFeed(f.id);
-                                  if (selectedId === f.id) {
-                                    setSelectedId(null);
-                                    setFeedData(null);
-                                    setActiveItem(null);
-                                    setMobileShowReader(false);
-                                  }
+                                  void (async () => {
+                                    try {
+                                      await removeFeed(f.id);
+                                      if (selectedId === f.id) {
+                                        setSelectedId(null);
+                                        setFeedData(null);
+                                        setActiveItem(null);
+                                        setMobileShowReader(false);
+                                      }
+                                    } catch (e) {
+                                      setError(
+                                        e instanceof Error
+                                          ? e.message
+                                          : "删除失败",
+                                      );
+                                    }
+                                  })();
                                 }}
                               >
                                 删除
