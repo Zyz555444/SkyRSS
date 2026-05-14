@@ -28,7 +28,7 @@ html {
 }
 
 body {
-  min-height: 100dvh;
+  min-height: 0;
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   background-color: var(--background);
@@ -167,4 +167,10 @@ body {
   width: 100%;
   max-width: 65ch;
   margin-inline: auto;
+}
+
+.article-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
 }

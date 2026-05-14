@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/glass";
 import { useFeeds } from "@/hooks/useFeeds";
 import { cn } from "@/lib/cn";
+import { ArticleBody } from "@/components/reader/ArticleBody";
 import { normalizeFeedUrlInput } from "@/lib/normalize-feed-url";
 import type { RssApiErrorJson, RssFeedJson, RssItemJson } from "@/types/rss";
 
@@ -202,7 +203,7 @@ export function ReaderApp() {
     : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:p-6">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted)]">
@@ -236,15 +237,15 @@ export function ReaderApp() {
 
       <div
         className={cn(
-          "grid min-h-0 flex-1 gap-4",
-          "min-h-[50vh] grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(260px,280px)_minmax(280px,0.38fr)_minmax(0,1fr)]",
+          "grid min-h-0 flex-1 gap-4 overflow-hidden",
+          "grid-cols-1 lg:grid-cols-[minmax(260px,280px)_minmax(280px,0.38fr)_minmax(0,1fr)]",
           "lg:items-stretch",
         )}
       >
         <aside
           id="feed-sidebar"
           className={cn(
-            "flex min-h-0 w-full shrink-0 flex-col gap-3 lg:w-72",
+            "flex min-h-0 w-full shrink-0 flex-col gap-3 overflow-hidden lg:w-72",
             sidebarOpen ? "flex" : "hidden lg:flex",
           )}
         >
@@ -570,29 +571,12 @@ export function ReaderApp() {
                     )}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                   <div className="article-reading-shell px-4 py-4">
-                    <div className="article-body">
-                      {activeItem.contentHtml ? (
-                        <div
-                          // 已由 /api/rss 使用 sanitize-html 清洗
-                          dangerouslySetInnerHTML={{
-                            __html: activeItem.contentHtml,
-                          }}
-                        />
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="whitespace-pre-wrap text-[color:var(--text)]">
-                            {activeItem.contentSnippet?.trim() ||
-                              "（此条目无摘要与正文 HTML，可能仅在原站提供全文。）"}
-                          </p>
-                          <p className="text-xs text-[color:var(--muted)]">
-                            部分订阅源仅在 RSS
-                            中提供摘要；纯文本摘要无法显示加粗等格式。若需原站样式，请使用下方按钮。
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    <ArticleBody
+                      html={activeItem.contentHtml}
+                      fallbackSnippet={activeItem.contentSnippet}
+                    />
                   </div>
                 </div>
 
