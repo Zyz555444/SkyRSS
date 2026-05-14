@@ -8,10 +8,6 @@
 
 ## 截图 · Screenshots
 
-下列图片为 **界面风格示意**（便于 README 展示）；你也可以在本地运行应用后自行截取，替换 `docs/` 下同名文件。
-
-> **EN:** The images below are **stylized mockups** for documentation. Replace the files under `docs/` with real screenshots from your own build if you prefer.
-
 | 桌面端（三栏） · Desktop (three columns) | 窄屏 / 移动端示意 · Narrow / mobile layout |
 | --- | --- |
 | ![SkyRSS 桌面端三栏布局 / Desktop three-column layout](docs/screenshot-desktop.png) | ![SkyRSS 窄屏布局 / Narrow-screen layout](docs/screenshot-mobile.png) |
