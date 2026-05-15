@@ -629,109 +629,137 @@ export function ReaderApp() {
         </div>
       ) : null}
 
-      <div className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:gap-4 md:p-4 lg:flex-row">
-        <ReaderSidebar
-          isLargeScreen={isLg}
-          mobileOpen={sidebarOpen}
-          onMobileClose={() => setSidebarOpen(false)}
-          nav={nav}
-          onNav={(n) => {
-            setNav(n);
-            setSidebarOpen(false);
-            setActiveItem(null);
-            setActiveKey(null);
-            setMobileShowReader(false);
-          }}
-          folders={folders}
-          feeds={feeds}
-          unreadTotal={unreadTotal}
-          unreadByFeedId={unreadByFeedId}
-          readLaterCount={readLaterCount}
-          favoritesCount={favoritesCount}
-          recentCount={recentCount}
-          newFolderName={newFolderName}
-          setNewFolderName={setNewFolderName}
-          onCreateFolder={() => void handleCreateFolder()}
-          onDeleteFolder={(id) => void handleDeleteFolder(id)}
-          onFeedFolderChange={(feedId, folderId) => {
-            void (async () => {
-              try {
-                await updateFeedFolder(feedId, folderId);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "更新失败");
-              }
-            })();
-          }}
-          onRemoveFeed={(id) => {
-            void (async () => {
-              try {
-                await removeFeed(id);
-                setNav((n) =>
-                  n.kind === "source" && n.sourceId === id
-                    ? { kind: "all" }
-                    : n,
-                );
-                if (activeItem?.subscriptionId === id) {
-                  setActiveItem(null);
-                  setActiveKey(null);
-                  setMobileShowReader(false);
+      {/* 现代化布局：顶部导航 + 双栏内容区 */}
+      <div className="relative flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:gap-6 lg:p-6">
+        {/* 左侧边栏：订阅导航 */}
+        <aside className="hidden lg:flex lg:w-72 lg:flex-shrink-0">
+          <ReaderSidebar
+            isLargeScreen={isLg}
+            mobileOpen={sidebarOpen}
+            onMobileClose={() => setSidebarOpen(false)}
+            nav={nav}
+            onNav={(n) => {
+              setNav(n);
+              setActiveItem(null);
+              setActiveKey(null);
+              setMobileShowReader(false);
+            }}
+            folders={folders}
+            feeds={feeds}
+            unreadTotal={unreadTotal}
+            unreadByFeedId={unreadByFeedId}
+            readLaterCount={readLaterCount}
+            favoritesCount={favoritesCount}
+            recentCount={recentCount}
+            newFolderName={newFolderName}
+            setNewFolderName={setNewFolderName}
+            onCreateFolder={() => void handleCreateFolder()}
+            onDeleteFolder={(id) => void handleDeleteFolder(id)}
+            onFeedFolderChange={(feedId, folderId) => {
+              void (async () => {
+                try {
+                  await updateFeedFolder(feedId, folderId);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "更新失败");
                 }
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "删除失败");
-              }
-            })();
-          }}
-          onOpenAddFeed={() => {
-            setShowAddFeed(true);
-            setSidebarOpen(false);
-          }}
-          cloudLoading={cloudLoading || readerRemoteLoading}
-          cloudError={cloudError ?? readerRemoteError}
-        />
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-h-0 lg:min-w-0 lg:flex-[0.42]">
-          {!isLg ? (
-            <GlassButton
-              type="button"
-              className="shrink-0 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              订阅栏
-            </GlassButton>
-          ) : null}
-
-          <ArticleListColumn
-            title={listColumnTitle(nav, folders, feeds)}
-            rows={filteredRows}
-            activeKey={activeKey}
-            onSelectRow={(row) => void handleSelectRow(row)}
-            isUnread={isUnread}
-            onToggleFavorite={(row) => void handleToggleFavorite(row)}
-            onToggleReadLater={(row) => void handleToggleReadLater(row)}
-            isFavorite={isFavorite}
-            isReadLater={isReadLater}
-            mergeErrors={mergeErrors.map((e) => ({
-              title: e.title,
-              message: e.message,
-            }))}
-            loading={mergeLoading}
-            onMarkAllRead={() => void handleMarkAllRead()}
-            isLargeScreen={isLg}
-            mobileShowReader={mobileShowReader}
-            onOpenMobileMenu={() => setSidebarOpen(true)}
-            onRefresh={handleRefresh}
-            updatedLabel={updatedLabel}
+              })();
+            }}
+            onRemoveFeed={(id) => {
+              void (async () => {
+                try {
+                  await removeFeed(id);
+                  setNav((n) =>
+                    n.kind === "source" && n.sourceId === id
+                      ? { kind: "all" }
+                      : n,
+                  );
+                  if (activeItem?.subscriptionId === id) {
+                    setActiveItem(null);
+                    setActiveKey(null);
+                    setMobileShowReader(false);
+                  }
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "删除失败");
+                }
+              })();
+            }}
+            onOpenAddFeed={() => {
+              setShowAddFeed(true);
+              setSidebarOpen(false);
+            }}
+            cloudLoading={cloudLoading || readerRemoteLoading}
+            cloudError={cloudError ?? readerRemoteError}
           />
-        </div>
+        </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0 lg:min-w-0 lg:flex-1">
-          <ArticleReaderColumn
-            item={activeItem}
-            isLargeScreen={isLg}
-            mobileShowReader={mobileShowReader}
-            onBack={() => setMobileShowReader(false)}
-          />
-        </div>
+        {/* 主内容区：文章列表 + 阅读栏 */}
+        <main className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+          {/* 文章列表栏 */}
+          <div className="flex min-w-0 flex-col lg:w-[420px] lg:flex-shrink-0">
+            {/* 移动端侧边栏触发器 */}
+            {!isLg && (
+              <GlassButton
+                type="button"
+                className="mb-3 w-full lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <span className="text-lg">☰</span>
+                <span>订阅菜单</span>
+              </GlassButton>
+            )}
+            
+            <ArticleListColumn
+              title={listColumnTitle(nav, folders, feeds)}
+              rows={filteredRows}
+              activeKey={activeKey}
+              onSelectRow={(row) => void handleSelectRow(row)}
+              isUnread={isUnread}
+              onToggleFavorite={(row) => void handleToggleFavorite(row)}
+              onToggleReadLater={(row) => void handleToggleReadLater(row)}
+              isFavorite={isFavorite}
+              isReadLater={isReadLater}
+              mergeErrors={mergeErrors.map((e) => ({
+                title: e.title,
+                message: e.message,
+              }))}
+              loading={mergeLoading}
+              onMarkAllRead={() => void handleMarkAllRead()}
+              isLargeScreen={isLg}
+              mobileShowReader={mobileShowReader}
+              onOpenMobileMenu={() => setSidebarOpen(true)}
+              onRefresh={handleRefresh}
+              updatedLabel={updatedLabel}
+            />
+          </div>
+
+          {/* 阅读栏 - 固定宽度 */}
+          <div className="hidden min-h-0 lg:flex lg:w-[680px] lg:flex-shrink-0">
+            <ArticleReaderColumn
+              item={activeItem}
+              isLargeScreen={isLg}
+              mobileShowReader={mobileShowReader}
+              onBack={() => setMobileShowReader(false)}
+            />
+          </div>
+        </main>
+
+        {/* 移动端全屏阅读视图 */}
+        {isLg ? null : (
+          <div
+            className={
+              mobileShowReader && activeItem
+                ? "fixed inset-0 z-50 flex flex-col bg-background"
+                : "hidden"
+            }
+          >
+            <ArticleReaderColumn
+              item={activeItem}
+              isLargeScreen={isLg}
+              mobileShowReader={true}
+              onBack={() => setMobileShowReader(false)}
+            />
+          </div>
+        )}
       </div>
 
       {showAddFeed ? (
