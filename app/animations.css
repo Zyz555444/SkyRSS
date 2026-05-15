@@ -1,15 +1,37 @@
-/* 性能优化动画系统 */
+/* 现代化动画系统 */
 
-/* 1. GPU 加速层优化 */
-* {
-  will-change: auto;
+/* 1. 缓动函数 */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-sine: cubic-bezier(0.39, 0.575, 0.565, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
 }
 
-/* 2. 页面过渡动画 */
+/* 2. 页面和组件进入动画 */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
   }
   to {
     opacity: 1;
@@ -20,7 +42,7 @@
 @keyframes slideInLeft {
   from {
     opacity: 0;
-    transform: translateX(-16px);
+    transform: translateX(-24px);
   }
   to {
     opacity: 1;
@@ -31,7 +53,7 @@
 @keyframes slideInRight {
   from {
     opacity: 0;
-    transform: translateX(16px);
+    transform: translateX(24px);
   }
   to {
     opacity: 1;
@@ -42,7 +64,7 @@
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: scale(0.94);
   }
   to {
     opacity: 1;
@@ -54,11 +76,11 @@
 @keyframes listItemEnter {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(16px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -67,11 +89,11 @@
     background-color: transparent;
   }
   50% {
-    background-color: rgba(14, 165, 233, 0.08);
+    background-color: rgba(14, 165, 233, 0.06);
   }
 }
 
-/* 4. 骨架屏动画 */
+/* 4. 骨架屏加载动画 */
 @keyframes shimmer {
   0% {
     background-position: -1000px 0;
@@ -83,20 +105,20 @@
 
 @keyframes pulse {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 1;
   }
   50% {
-    opacity: 0.3;
+    opacity: 0.5;
   }
 }
 
-/* 5. 交互反馈动画 */
+/* 5. 按钮交互反馈 */
 @keyframes buttonPress {
   0% {
     transform: scale(1);
   }
   50% {
-    transform: scale(0.97);
+    transform: scale(0.96);
   }
   100% {
     transform: scale(1);
@@ -106,10 +128,10 @@
 @keyframes ripple {
   0% {
     transform: scale(0);
-    opacity: 0.5;
+    opacity: 0.6;
   }
   100% {
-    transform: scale(4);
+    transform: scale(3);
     opacity: 0;
   }
 }
@@ -120,20 +142,19 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-4px);
+    transform: translateY(-6px);
   }
 }
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(14, 165, 233, 0.3);
+    box-shadow: 0 0 8px rgba(14, 165, 233, 0.3);
   }
   50% {
-    box-shadow: 0 0 20px rgba(14, 165, 233, 0.6);
+    box-shadow: 0 0 24px rgba(14, 165, 233, 0.6);
   }
 }
 
-/* 7. 加载旋转动画 */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -143,36 +164,49 @@
   }
 }
 
-/* 8. 实用动画类 */
-.animate-fade-in {
-  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
-.animate-fade-in-fast {
-  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* 7. 实用动画类 */
+.animate-fade-in {
+  animation: fadeIn 0.3s var(--ease-out-expo) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s var(--ease-out-expo) forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.3s var(--ease-out-sine) forwards;
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInLeft 0.35s var(--ease-out-expo) forwards;
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInRight 0.35s var(--ease-out-expo) forwards;
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scaleIn 0.25s var(--ease-out-expo) forwards;
 }
 
 .animate-list-item {
-  animation: listItemEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: listItemEnter 0.4s var(--ease-out-expo) forwards;
 }
 
 .animate-shimmer {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.3) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   background-size: 1000px 100%;
@@ -180,11 +214,11 @@
 }
 
 .animate-pulse-slow {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .animate-button-press {
-  animation: buttonPress 0.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: buttonPress 0.15s var(--ease-out-expo) forwards;
 }
 
 .animate-float {
@@ -195,20 +229,28 @@
   animation: spin 1s linear infinite;
 }
 
-/* 9. 过渡效果 */
+.animate-bounce {
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+/* 8. 过渡效果 */
 .transition-smooth {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s var(--ease-out-expo);
 }
 
 .transition-transform-smooth {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s var(--ease-out-expo);
 }
 
 .transition-opacity-smooth {
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.3s var(--ease-out-sine);
 }
 
-/* 10. 性能优化类 */
+.transition-colors-smooth {
+  transition: all 0.2s var(--ease-out-sine);
+}
+
+/* 9. 性能优化 */
 .gpu-accelerated {
   transform: translateZ(0);
   will-change: transform;
@@ -222,29 +264,29 @@
   content-visibility: auto;
 }
 
-/* 11. 骨架屏样式 */
+/* 10. 骨架屏样式 */
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(15, 23, 42, 0.08) 25%,
-    rgba(15, 23, 42, 0.12) 50%,
-    rgba(15, 23, 42, 0.08) 75%
+    rgba(15, 23, 42, 0.06) 25%,
+    rgba(15, 23, 42, 0.1) 50%,
+    rgba(15, 23, 42, 0.06) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
 }
 
 .dark .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(226, 232, 240, 0.08) 25%,
-    rgba(226, 232, 240, 0.12) 50%,
-    rgba(226, 232, 240, 0.08) 75%
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.06) 75%
   );
 }
 
-/* 12. 延迟动画（用于列表项） */
+/* 11. 动画延迟 */
 .animation-delay-100 {
   animation-delay: 100ms;
 }
@@ -265,7 +307,7 @@
   animation-delay: 500ms;
 }
 
-/* 13. 减少动画偏好 */
+/* 12. 减少动画偏好 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

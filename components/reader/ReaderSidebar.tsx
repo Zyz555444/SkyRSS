@@ -68,10 +68,11 @@ export function ReaderSidebar({
 
   return (
     <>
+      {/* 移动端遮罩层 */}
       {!isLargeScreen && mobileOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-30 bg-[color:var(--drawer-backdrop)] backdrop-blur-[2px]"
+          className="fixed inset-0 z-30 bg-[color:var(--drawer-backdrop)] backdrop-blur-sm transition-opacity"
           aria-label="关闭侧栏"
           onClick={onMobileClose}
         />
@@ -80,179 +81,265 @@ export function ReaderSidebar({
       <aside
         id="reader-sidebar"
         className={cn(
-          "flex min-h-0 shrink-0 flex-col gap-3 overflow-hidden",
+          "flex h-full min-h-0 flex-col gap-4 overflow-hidden",
           isLargeScreen
-            ? "relative w-full lg:w-72"
+            ? "relative w-72"
             : cn(
-                "fixed bottom-0 left-0 top-0 z-40 flex w-[min(20rem,88vw)] max-w-full flex-col gap-3 overflow-y-auto border-r border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] p-3 shadow-2xl transition-transform duration-200 ease-out",
+                "fixed bottom-0 left-0 top-0 z-40 w-[min(22rem,90vw)] max-w-full flex-col overflow-y-auto border-r border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] p-5 shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-out",
                 mobileOpen ? "translate-x-0" : "-translate-x-full",
               ),
         )}
       >
-        <GlassPanel className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-base font-semibold text-[color:var(--text)]">
-              订阅
+        {/* 添加订阅按钮区域 */}
+        <GlassPanel className="flex items-center justify-between p-4">
+          <div>
+            <p className="text-lg font-bold text-[color:var(--text)]">
+              订阅管理
             </p>
-            <GlassButton
-              type="button"
-              className="h-9 w-9 shrink-0 rounded-full p-0 text-lg font-light"
-              title="添加订阅"
-              onClick={onOpenAddFeed}
-            >
-              +
-            </GlassButton>
+            {cloudLoading ? (
+              <p className="mt-1 text-xs text-[color:var(--muted)]">
+                云端同步中…
+              </p>
+            ) : null}
           </div>
-          {cloudLoading ? (
-            <p className="text-xs text-[color:var(--muted)]">云端同步中…</p>
-          ) : null}
-          {cloudError ? (
-            <p className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-2 py-1.5 text-xs text-rose-700 dark:text-rose-200">
-              {cloudError}
-            </p>
-          ) : null}
+          <GlassButton
+            type="button"
+            className="group h-11 w-11 shrink-0 rounded-full p-0 text-2xl transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-95"
+            title="添加订阅"
+            onClick={onOpenAddFeed}
+          >
+            +
+          </GlassButton>
+        </GlassPanel>
 
-          <nav className="flex flex-col gap-0.5">
+        {/* 错误提示 */}
+        {cloudError ? (
+          <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-200">
+            <div className="flex items-start gap-2">
+              <span className="text-lg">⚠️</span>
+              <div>
+                <p className="font-medium">同步失败</p>
+                <p className="mt-1 text-xs opacity-80">{cloudError}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* 导航菜单 */}
+        <GlassPanel className="p-4">
+          <nav className="flex flex-col gap-1.5">
+            {/* 全部文章 */}
             <button
               type="button"
-              className={navButtonClass(allActive)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                allActive
+                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
+              )}
               onClick={() => onNav({ kind: "all" })}
             >
-              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
+              <span className="text-xl" aria-hidden>
                 📄
               </span>
               <span className="min-w-0 flex-1 truncate">全部文章</span>
               <span className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)] transition-all duration-200",
-                unreadTotal > 0 ? "bg-sky-500/20 text-sky-700 dark:text-sky-300" : "bg-[color:var(--hover-row)]",
+                "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums transition-all duration-200",
+                unreadTotal > 0
+                  ? "bg-[color:var(--primary)] text-white"
+                  : "bg-[color:var(--secondary)] text-[color:var(--muted)]",
               )}>
                 {unreadTotal}
               </span>
             </button>
+
+            {/* 稍后阅读 */}
             <button
               type="button"
-              className={navButtonClass(rlActive)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                rlActive
+                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
+              )}
               onClick={() => onNav({ kind: "read_later" })}
             >
-              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
+              <span className="text-xl" aria-hidden>
                 📋
               </span>
               <span className="min-w-0 flex-1 truncate">稍后阅读</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+              <span className="shrink-0 rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[color:var(--muted)]">
                 {readLaterCount}
               </span>
             </button>
+
+            {/* 收藏 */}
             <button
               type="button"
-              className={navButtonClass(favActive)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                favActive
+                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
+              )}
               onClick={() => onNav({ kind: "favorites" })}
             >
-              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
+              <span className="text-xl" aria-hidden>
                 ⭐
               </span>
               <span className="min-w-0 flex-1 truncate">收藏</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+              <span className="shrink-0 rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[color:var(--muted)]">
                 {favoritesCount}
               </span>
             </button>
+
+            {/* 最近阅读 */}
             <button
               type="button"
-              className={navButtonClass(recActive)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                recActive
+                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
+              )}
               onClick={() => onNav({ kind: "recent" })}
             >
-              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
+              <span className="text-xl" aria-hidden>
                 🕐
               </span>
               <span className="min-w-0 flex-1 truncate">最近阅读</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+              <span className="shrink-0 rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[color:var(--muted)]">
                 {recentCount}
               </span>
             </button>
           </nav>
         </GlassPanel>
 
-        <GlassPanel className="flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-            分类
-          </p>
+        {/* 分类管理 */}
+        <GlassPanel className="flex flex-col gap-3 p-4">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+              分类
+            </p>
+          </div>
+          
+          {/* 添加分类输入框 */}
           <div className="flex gap-2">
             <GlassInput
               className="min-w-0 flex-1 text-sm"
-              placeholder="新分类名称"
+              placeholder="输入分类名称"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") onCreateFolder();
               }}
             />
-            <GlassButton type="button" className="shrink-0" onClick={onCreateFolder}>
+            <GlassButton
+              type="button"
+              className="shrink-0 px-4"
+              onClick={onCreateFolder}
+            >
               添加
             </GlassButton>
           </div>
-          <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
-            {folders.map((f) => {
-              const active = nav.kind === "folder" && nav.folderId === f.id;
-              return (
-                <li
-                  key={f.id}
-                  className="flex items-center gap-1 rounded-xl hover:bg-[color:var(--hover-row)]"
-                >
-                  <button
-                    type="button"
-                    className={cn(navButtonClass(active), "flex-1 border-0")}
-                    onClick={() => onNav({ kind: "folder", folderId: f.id })}
+
+          {/* 分类列表 */}
+          <ul className="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
+            {folders.length === 0 ? (
+              <li className="rounded-xl border border-dashed border-[color:var(--card-border)] px-4 py-6 text-center text-sm text-[color:var(--muted)]">
+                暂无分类，点击上方添加
+              </li>
+            ) : (
+              folders.map((f) => {
+                const active = nav.kind === "folder" && nav.folderId === f.id;
+                return (
+                  <li
+                    key={f.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl p-1 transition-all duration-200",
+                      active ? "bg-[color:var(--primary)]/[0.08]" : "hover:bg-[color:var(--hover-row)]",
+                    )}
                   >
-                    <span aria-hidden>📁</span>
-                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  </button>
-                  <GlassButton
-                    type="button"
-                    className="h-8 w-8 shrink-0 rounded-lg p-0 text-xs text-rose-600"
-                    title="删除分类"
-                    onClick={() => onDeleteFolder(f.id)}
-                  >
-                    ×
-                  </GlassButton>
-                </li>
-              );
-            })}
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-all duration-200",
+                        active
+                          ? "text-[color:var(--primary)]"
+                          : "text-[color:var(--text)]",
+                      )}
+                      onClick={() => onNav({ kind: "folder", folderId: f.id })}
+                    >
+                      <span aria-hidden>📁</span>
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    </button>
+                    <GlassButton
+                      type="button"
+                      className="h-8 w-8 shrink-0 rounded-lg p-0 text-sm text-rose-500 hover:bg-rose-500/10"
+                      title="删除分类"
+                      onClick={() => onDeleteFolder(f.id)}
+                    >
+                      ×
+                    </GlassButton>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </GlassPanel>
 
-        <GlassPanel className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-0">
-          <div className="border-b border-[color:var(--glass-border)] px-4 py-3 text-sm font-medium text-[color:var(--text)]">
-            订阅源 ({feeds.length})
+        {/* 订阅源列表 */}
+        <GlassPanel className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+          <div className="border-b border-[color:var(--glass-border)] px-4 py-3 text-sm font-semibold text-[color:var(--text)]">
+            <div className="flex items-center justify-between">
+              <span>订阅源</span>
+              <span className="rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--muted)]">
+                {feeds.length}
+              </span>
+            </div>
           </div>
-          <ul className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-3">
+          
+          <ul className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
             {feeds.length === 0 ? (
-              <li className="px-2 py-6 text-center text-sm text-[color:var(--muted)]">
-                暂无订阅，点击上方 + 添加
+              <li className="px-2 py-10 text-center">
+                <p className="text-4xl mb-3">📡</p>
+                <p className="text-sm text-[color:var(--muted)]">
+                  暂无订阅源
+                </p>
+                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+                  点击上方 + 号添加第一个订阅
+                </p>
               </li>
             ) : (
               feeds.map((f) => {
                 const active = nav.kind === "source" && nav.sourceId === f.id;
                 const n = unreadByFeedId[f.id] ?? 0;
                 return (
-                  <li key={f.id} className="rounded-xl px-1 py-1">
+                  <li key={f.id} className="group">
                     <button
                       type="button"
-                      className={navButtonClass(active)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all duration-200",
+                        active
+                          ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                          : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
+                      )}
                       onClick={() => onNav({ kind: "source", sourceId: f.id })}
                     >
                       <span className="min-w-0 flex-1 truncate text-left">
                         {f.title}
                       </span>
-                      <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
-                        {n}
-                      </span>
+                      {n > 0 && (
+                        <span className="shrink-0 rounded-full bg-[color:var(--primary)] px-2 py-0.5 text-xs font-semibold text-white">
+                          {n}
+                        </span>
+                      )}
                     </button>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 px-2 pb-1">
-                      <label className="sr-only" htmlFor={`folder-${f.id}`}>
-                        分类
-                      </label>
+                    
+                    {/* 分类选择和删除按钮 */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2 px-1 pb-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                       <select
-                        id={`folder-${f.id}`}
-                        className="glass-input min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs text-[color:var(--text)]"
+                        className="glass-input min-w-0 flex-1 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--secondary)] px-3 py-1.5 text-xs text-[color:var(--text)] transition-all duration-200 focus:border-[color:var(--primary)] focus:outline-none"
                         value={f.folderId ?? ""}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -268,7 +355,7 @@ export function ReaderSidebar({
                       </select>
                       <GlassButton
                         type="button"
-                        className="h-8 shrink-0 rounded-lg px-2 text-xs text-rose-600"
+                        className="h-8 shrink-0 rounded-lg px-3 text-xs text-rose-500 hover:bg-rose-500/10"
                         title="删除订阅"
                         onClick={() => onRemoveFeed(f.id)}
                       >

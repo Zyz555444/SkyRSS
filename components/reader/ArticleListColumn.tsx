@@ -81,96 +81,141 @@ export function ArticleListColumn({
   return (
     <GlassPanel
       className={cn(
-        "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0",
+        "flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] backdrop-blur-2xl",
         !isLargeScreen && mobileShowReader && "hidden",
+        "shadow-lg transition-all duration-300",
       )}
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[color:var(--glass-border)] px-3 py-3 md:px-4">
-        {!isLargeScreen ? (
+      {/* 栏目标题 */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] px-5 py-4 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          {!isLargeScreen ? (
+            <GlassButton
+              type="button"
+              className="h-9 w-9 shrink-0 rounded-full p-0 lg:hidden"
+              title="菜单"
+              onClick={onOpenMobileMenu}
+            >
+              ☰
+            </GlassButton>
+          ) : null}
+          <h2 className="text-lg font-bold text-[color:var(--text)]">
+            {title}
+          </h2>
+        </div>
+        
+        <div className="flex items-center gap-2">
           <GlassButton
             type="button"
-            className="h-9 w-9 shrink-0 rounded-full p-0"
-            title="菜单"
-            onClick={onOpenMobileMenu}
+            className="h-9 w-9 shrink-0 rounded-full p-0 transition-all duration-200 hover:scale-105 active:scale-95"
+            title="全部标为已读"
+            onClick={onMarkAllRead}
           >
-            ☰
+            ✓
           </GlassButton>
-        ) : null}
-        <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold text-[color:var(--text)] md:text-left">
-          {title}
-        </h2>
-        <GlassButton
-          type="button"
-          className="h-9 w-9 shrink-0 rounded-full p-0"
-          title="全部标为已读"
-          onClick={onMarkAllRead}
-        >
-          ✓
-        </GlassButton>
-        {loading ? (
-          <span className="text-xs text-[color:var(--muted)]">加载中…</span>
-        ) : null}
+          {loading ? (
+            <span className="animate-pulse text-xs text-[color:var(--muted)]">
+              加载中…
+            </span>
+          ) : null}
+        </div>
       </div>
 
+      {/* 错误提示 */}
       {mergeErrors && mergeErrors.length > 0 ? (
-        <div className="mx-3 mt-2 rounded-xl border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100 md:mx-4">
-          部分订阅未更新：{mergeErrors.map((e) => e.title).join("、")}
+        <div className="mx-5 mt-3 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">
+          <span className="mt-0.5 text-sm">⚠️</span>
+          <div>
+            <p className="font-medium">部分订阅源更新失败</p>
+            <p className="mt-1 opacity-80">
+              {mergeErrors.map((e) => e.title).join("、")}
+            </p>
+          </div>
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3 pt-1 md:px-3">
+      {/* 文章列表 */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-3">
         {rows.length === 0 && !loading ? (
-          <p className="px-3 py-10 text-center text-sm text-[color:var(--muted)]">
-            暂无条目
-          </p>
+          <div className="empty-state">
+            <div className="mb-4 text-5xl">📭</div>
+            <p className="text-base font-medium text-[color:var(--text)]">
+              暂无条目
+            </p>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">
+              这里还没有文章，去添加一些订阅源吧
+            </p>
+          </div>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {rows.map((row) => {
+          <ul className="flex flex-col gap-3">
+            {rows.map((row, index) => {
               const key = listRowCompositeKey(row);
               const active = activeKey === key;
               const unread = isUnread(row);
+              const style = {
+                animationDelay: `${index * 30}ms`,
+              };
+              
               return (
-                <li key={key}>
+                <li
+                  key={key}
+                  className="animate-list-item"
+                  style={style}
+                >
                   <div
                     className={cn(
-                      "rounded-2xl border border-transparent px-3 py-3 transition-colors",
-                      active
-                        ? "border-sky-300/50 bg-[color:var(--glass-active)]"
-                        : "bg-[color:var(--glass-bg-strong)] hover:bg-[color:var(--hover-row)]",
+                      "article-card group relative cursor-pointer overflow-hidden",
+                      active && "ring-2 ring-[color:var(--primary)] ring-offset-2",
+                      unread && "bg-gradient-to-r from-[color:var(--primary)]/[0.04] to-transparent",
                     )}
+                    onClick={() => onSelectRow(row)}
                   >
-                    <button
-                      type="button"
-                      className="w-full text-left"
-                      onClick={() => onSelectRow(row)}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-snug text-[color:var(--text)]">
-                          {titleOf(row)}
-                        </p>
-                        {unread ? (
-                          <span
-                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-sky-500"
-                            title="未读"
-                          />
-                        ) : null}
-                      </div>
-                      {snippetOf(row) ? (
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[color:var(--muted)]">
-                          {snippetOf(row)}
-                        </p>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[color:var(--muted)]">
-                        <span className="truncate">{sourceOf(row)}</span>
-                        <span className="shrink-0 tabular-nums">
-                          {timeLabel(row) ?? ""}
+                    {/* 未读指示器 */}
+                    {unread && (
+                      <div className="absolute left-0 top-0 h-full w-1 bg-[color:var(--primary)]" />
+                    )}
+                    
+                    {/* 标题区域 */}
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <h3 className={cn(
+                        "line-clamp-2 text-base font-semibold leading-snug transition-colors",
+                        unread
+                          ? "text-[color:var(--text)]"
+                          : "text-[color:var(--muted)]",
+                      )}>
+                        {titleOf(row)}
+                      </h3>
+                    </div>
+                    
+                    {/* 摘要 */}
+                    {snippetOf(row) ? (
+                      <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-[color:var(--muted)]">
+                        {snippetOf(row)}
+                      </p>
+                    ) : null}
+                    
+                    {/* 元信息 */}
+                    <div className="flex items-center justify-between gap-2 text-xs text-[color:var(--muted-foreground)]">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <span className="truncate font-medium">
+                          {sourceOf(row)}
                         </span>
                       </div>
-                    </button>
-                    <div className="mt-2 flex justify-end gap-1 border-t border-[color:var(--glass-border)]/60 pt-2">
+                      <span className="shrink-0 whitespace-nowrap tabular-nums">
+                        {timeLabel(row) ?? ""}
+                      </span>
+                    </div>
+                    
+                    {/* 操作按钮 - 悬停时显示 */}
+                    <div className="mt-3 flex items-center justify-end gap-2 border-t border-[color:var(--card-border)] pt-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                       <GlassButton
                         type="button"
-                        className="h-8 rounded-lg px-2 text-xs"
+                        className={cn(
+                          "h-8 rounded-lg px-3 text-sm transition-all duration-200 hover:scale-105",
+                          isFavorite(row)
+                            ? "bg-[color:var(--primary)]/[0.1] text-[color:var(--primary)]"
+                            : "",
+                        )}
                         title="收藏"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -179,16 +224,22 @@ export function ArticleListColumn({
                       >
                         {isFavorite(row) ? "★" : "☆"}
                       </GlassButton>
+                      
                       <GlassButton
                         type="button"
-                        className="h-8 rounded-lg px-2 text-xs"
+                        className={cn(
+                          "h-8 rounded-lg px-3 text-sm transition-all duration-200 hover:scale-105",
+                          isReadLater(row)
+                            ? "bg-[color:var(--accent)]/[0.1] text-[color:var(--accent)]"
+                            : "",
+                        )}
                         title="稍后阅读"
                         onClick={(e) => {
                           e.stopPropagation();
                           onToggleReadLater(row);
                         }}
                       >
-                        {isReadLater(row) ? "稍后✓" : "稍后"}
+                        {isReadLater(row) ? "✓ 稍后" : "稍后"}
                       </GlassButton>
                     </div>
                   </div>
@@ -199,20 +250,21 @@ export function ArticleListColumn({
         )}
       </div>
 
+      {/* 底部状态栏 - 仅移动端 */}
       {!isLargeScreen ? (
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-[color:var(--glass-border)] px-3 py-2 text-xs text-[color:var(--muted)]">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] px-5 py-3 backdrop-blur-xl">
           <GlassButton
             type="button"
-            className="h-8 w-8 shrink-0 rounded-full p-0"
+            className="h-9 w-9 shrink-0 rounded-full p-0 transition-all duration-200 hover:scale-105"
             title="刷新"
             onClick={onRefresh}
           >
             ↻
           </GlassButton>
-          <span className="min-w-0 flex-1 truncate text-center">
+          <span className="min-w-0 flex-1 truncate text-center text-xs text-[color:var(--muted-foreground)]">
             {updatedLabel ?? ""}
           </span>
-          <span className="w-8" />
+          <div className="w-9" />
         </div>
       ) : null}
     </GlassPanel>
