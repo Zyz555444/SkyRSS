@@ -31,10 +31,10 @@ type ReaderSidebarProps = {
 
 function navButtonClass(active: boolean) {
   return cn(
-    "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+    "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 ease-out border-0",
     active
-      ? "bg-[color:var(--glass-active)] font-medium text-[color:var(--text)]"
-      : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
+      ? "bg-[color:var(--glass-active)] font-medium text-[color:var(--text)] shadow-sm scale-[1.02]"
+      : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)] hover:scale-[1.01]",
   );
 }
 
@@ -118,11 +118,14 @@ export function ReaderSidebar({
               className={navButtonClass(allActive)}
               onClick={() => onNav({ kind: "all" })}
             >
-              <span className="text-lg" aria-hidden>
+              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
                 📄
               </span>
               <span className="min-w-0 flex-1 truncate">全部文章</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+              <span className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)] transition-all duration-200",
+                unreadTotal > 0 ? "bg-sky-500/20 text-sky-700 dark:text-sky-300" : "bg-[color:var(--hover-row)]",
+              )}>
                 {unreadTotal}
               </span>
             </button>
@@ -131,7 +134,7 @@ export function ReaderSidebar({
               className={navButtonClass(rlActive)}
               onClick={() => onNav({ kind: "read_later" })}
             >
-              <span className="text-lg" aria-hidden>
+              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
                 📋
               </span>
               <span className="min-w-0 flex-1 truncate">稍后阅读</span>
@@ -144,7 +147,7 @@ export function ReaderSidebar({
               className={navButtonClass(favActive)}
               onClick={() => onNav({ kind: "favorites" })}
             >
-              <span className="text-lg" aria-hidden>
+              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
                 ⭐
               </span>
               <span className="min-w-0 flex-1 truncate">收藏</span>
@@ -157,7 +160,7 @@ export function ReaderSidebar({
               className={navButtonClass(recActive)}
               onClick={() => onNav({ kind: "recent" })}
             >
-              <span className="text-lg" aria-hidden>
+              <span className="text-lg transition-transform duration-200 hover:scale-110" aria-hidden>
                 🕐
               </span>
               <span className="min-w-0 flex-1 truncate">最近阅读</span>

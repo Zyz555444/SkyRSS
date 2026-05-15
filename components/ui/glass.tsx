@@ -1,79 +1,107 @@
 "use client";
 
-import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 
-export function GlassPanel({
-  className,
-  children,
-  ...rest
-}: ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(
-        "glass-panel rounded-2xl border p-4 shadow-xl transition-[box-shadow,transform] duration-200",
-        className,
-      )}
-      {...rest}
-    >
-      {children}
-    </div>
-  );
-}
+type GlassButtonProps = {
+  children: React.ReactNode;
+  type?: "button" | "submit" | "reset";
+  className?: string;
+  disabled?: boolean;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  title?: string;
+};
 
 export function GlassButton({
-  className,
   children,
-  ...rest
-}: ComponentProps<"button">) {
+  type = "button",
+  className,
+  disabled,
+  onClick,
+  title,
+}: GlassButtonProps) {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    // 添加按钮按压动画
+    e.currentTarget.classList.add("animate-button-press");
+    setTimeout(() => {
+      e.currentTarget.classList.remove("animate-button-press");
+    }, 150);
+    
+    onClick?.(e);
+  };
+
   return (
     <button
-      type="button"
+      type={type}
       className={cn(
-        "glass-button inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors",
+        "glass-button relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-50",
+        "hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
-        "disabled:pointer-events-none disabled:opacity-45",
+        "gpu-accelerated",
         className,
       )}
-      {...rest}
+      disabled={disabled}
+      onClick={handleClick}
+      title={title}
     >
       {children}
     </button>
   );
 }
 
-export function GlassInput({
-  className,
-  ...rest
-}: ComponentProps<"input">) {
+type GlassPanelProps = {
+  children: React.ReactNode;
+  className?: string;
+};
+
+export function GlassPanel({ children, className }: GlassPanelProps) {
   return (
-    <input
+    <div
       className={cn(
-        "glass-input w-full rounded-xl border px-3 py-2 text-sm transition-[border-color,box-shadow]",
-        "placeholder:text-[color:var(--muted)]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
+        "glass-panel relative overflow-hidden rounded-2xl",
+        "transition-shadow duration-300 ease-out",
+        "gpu-accelerated",
         className,
       )}
-      {...rest}
-    />
+    >
+      {children}
+    </div>
   );
 }
 
-export function GlassLink({
+type GlassInputProps = {
+  className?: string;
+  type?: string;
+  inputMode?: "url" | "search" | "email" | "numeric" | "tel" | "text" | "none" | "decimal";
+  placeholder?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+};
+
+export function GlassInput({
   className,
-  children,
-  ...rest
-}: ComponentProps<"a">) {
+  type = "text",
+  inputMode,
+  placeholder,
+  value,
+  onChange,
+  onKeyDown,
+}: GlassInputProps) {
   return (
-    <a
+    <input
+      type={type}
+      inputMode={inputMode}
       className={cn(
-        "glass-button inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium no-underline transition-colors",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
+        "glass-input w-full rounded-xl border px-4 py-2.5 text-sm transition-all duration-200 ease-out",
+        "hover:border-sky-300/50 focus:border-sky-400/70",
+        "gpu-accelerated",
         className,
       )}
-      {...rest}
-    >
-      {children}
-    </a>
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+    />
   );
 }
