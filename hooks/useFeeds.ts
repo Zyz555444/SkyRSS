@@ -13,27 +13,25 @@ import {
   getServerFeedsSnapshot,
   saveFeeds,
   subscribeFeeds,
+  updateLibrary,
+  getLibrarySnapshot,
+  newLocalId,
   type StoredFeed,
-} from "@/lib/feeds-storage";
-
-function newId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
+} from "@/lib/reader-library-storage";
 
 function mapRemoteToStored(row: {
   id: string;
   url: string;
   title: string;
   createdAt: number;
+  folderId?: string | null;
 }): StoredFeed {
   return {
     id: row.id,
     url: row.url,
     title: row.title,
     createdAt: row.createdAt,
+    folderId: row.folderId ?? null,
   };
 }
 
@@ -76,6 +74,7 @@ export function useFeeds() {
         url: string;
         title: string;
         createdAt: number;
+        folderId?: string | null;
       }[];
       setRemoteFeeds(rows.map(mapRemoteToStored));
     } catch (e) {
@@ -109,7 +108,11 @@ export function useFeeds() {
         const res = await fetch("/api/subscriptions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: feed.url, title: feed.title }),
+          body: JSON.stringify({
+            url: feed.url,
+            title: feed.title,
+            folderId: feed.folderId ?? undefined,
+          }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
@@ -117,6 +120,7 @@ export function useFeeds() {
           url?: string;
           title?: string;
           createdAt?: number;
+          folderId?: string | null;
         };
         if (!res.ok) {
           throw new Error(data.error ?? "添加失败");
@@ -127,6 +131,7 @@ export function useFeeds() {
             url: string;
             title: string;
             createdAt: number;
+            folderId?: string | null;
           },
         );
         setRemoteFeeds((prev) => {
@@ -138,8 +143,9 @@ export function useFeeds() {
 
       const entry: StoredFeed = {
         ...feed,
-        id: newId(),
+        id: newLocalId(),
         createdAt: Date.now(),
+        folderId: feed.folderId ?? null,
       };
       const prev = getFeedsSnapshot();
       const next = [entry, ...prev.filter((f) => f.url !== entry.url)];
@@ -166,8 +172,11 @@ export function useFeeds() {
         setRemoteFeeds((prev) => prev.filter((f) => f.id !== id));
         return;
       }
-      const prev = getFeedsSnapshot();
-      saveFeeds(prev.filter((f) => f.id !== id));
+      updateLibrary((prev) => ({
+        ...prev,
+        feeds: prev.feeds.filter((f) => f.id !== id),
+        readerItems: prev.readerItems.filter((r) => r.subscriptionId !== id),
+      }));
     },
     [isLoaded, isSignedIn],
   );
@@ -197,9 +206,42 @@ export function useFeeds() {
         );
         return;
       }
-      const prev = getFeedsSnapshot();
+      const prev = getLibrarySnapshot();
       saveFeeds(
-        prev.map((f) => (f.id === id ? { ...f, title: trimmed } : f)),
+        prev.feeds.map((f) => (f.id === id ? { ...f, title: trimmed } : f)),
+      );
+    },
+    [isLoaded, isSignedIn],
+  );
+
+  const updateFeedFolder = useCallback(
+    async (id: string, folderId: string | null) => {
+      if (!isLoaded) return;
+      if (isSignedIn) {
+        const res = await fetch(
+          `/api/subscriptions/${encodeURIComponent(id)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folderId }),
+          },
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(data.error ?? "更新失败");
+        }
+        setRemoteFeeds((prev) =>
+          prev.map((f) => (f.id === id ? { ...f, folderId } : f)),
+        );
+        return;
+      }
+      const prev = getLibrarySnapshot();
+      saveFeeds(
+        prev.feeds.map((f) =>
+          f.id === id ? { ...f, folderId } : f,
+        ),
       );
     },
     [isLoaded, isSignedIn],
@@ -236,6 +278,7 @@ export function useFeeds() {
     addFeed,
     removeFeed,
     updateFeedTitle,
+    updateFeedFolder,
     importLocalFeedsToCloud,
     feedSource: isLoaded && isSignedIn ? ("cloud" as const) : ("local" as const),
     cloudLoading: Boolean(isLoaded && isSignedIn && remoteLoading),

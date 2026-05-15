@@ -1,70 +1,176 @@
 "use client";
 
-import { SignInButton, useAuth, UserButton } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
+  useRef,
 } from "react";
+import {
+  ArticleListColumn,
+  listRowCompositeKey,
+  type ListRow,
+} from "@/components/reader/ArticleListColumn";
+import { ArticleReaderColumn } from "@/components/reader/ArticleReaderColumn";
+import { ReaderSidebar } from "@/components/reader/ReaderSidebar";
+import { ReaderAuthSlot, ReaderTopBar } from "@/components/reader/ReaderTopBar";
+import type { ReaderNav } from "@/components/reader/types";
 import {
   GlassButton,
   GlassInput,
-  GlassLink,
   GlassPanel,
 } from "@/components/ui/glass";
 import { useFeeds } from "@/hooks/useFeeds";
-import { cn } from "@/lib/cn";
-import { ArticleBody } from "@/components/reader/ArticleBody";
+import { useReaderLibrary, type ReaderItemPatchInput } from "@/hooks/useReaderLibrary";
+import { fetchRssItemViewForSubscription } from "@/lib/fetch-rss-item-view";
+import { mergeFeedItems, type SubscriptionRef } from "@/lib/merge-feed-items";
 import { normalizeFeedUrlInput } from "@/lib/normalize-feed-url";
-import type { RssApiErrorJson, RssFeedJson, RssItemJson } from "@/types/rss";
+import type { StoredFeed, StoredReaderItem } from "@/lib/reader-library-storage";
+import type { RssFeedJson, RssItemView } from "@/types/rss";
 
-const UNCATEGORIZED = "未分类";
+const THEME_KEY = "skyrss-theme";
+const THEME_EVENT = "skyrss-theme-change";
 
-async function fetchFeedJson(url: string): Promise<RssFeedJson> {
+function subscribeStoredTheme(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const handler = () => cb();
+  window.addEventListener(THEME_EVENT, handler);
+  window.addEventListener("storage", handler);
+  return () => {
+    window.removeEventListener(THEME_EVENT, handler);
+    window.removeEventListener("storage", handler);
+  };
+}
+
+function getStoredThemeDark() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(THEME_KEY) === "dark";
+  } catch {
+    return false;
+  }
+}
+
+function setStoredThemeDark(next: boolean) {
+  try {
+    window.localStorage.setItem(THEME_KEY, next ? "dark" : "light");
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(THEME_EVENT));
+  }
+}
+
+function subscriptionsForNav(
+  nav: ReaderNav,
+  feeds: StoredFeed[],
+): SubscriptionRef[] {
+  if (nav.kind === "all") {
+    return feeds.map((f) => ({ id: f.id, url: f.url, title: f.title }));
+  }
+  if (nav.kind === "source") {
+    const f = feeds.find((x) => x.id === nav.sourceId);
+    return f ? [{ id: f.id, url: f.url, title: f.title }] : [];
+  }
+  if (nav.kind === "folder") {
+    return feeds
+      .filter((f) => f.folderId === nav.folderId)
+      .map((f) => ({ id: f.id, url: f.url, title: f.title }));
+  }
+  return [];
+}
+
+function listColumnTitle(
+  nav: ReaderNav,
+  folders: { id: string; name: string }[],
+  feeds: StoredFeed[],
+): string {
+  switch (nav.kind) {
+    case "all":
+      return "全部文章";
+    case "read_later":
+      return "稍后阅读";
+    case "favorites":
+      return "收藏";
+    case "recent":
+      return "最近阅读";
+    case "folder":
+      return folders.find((f) => f.id === nav.folderId)?.name ?? "分类";
+    case "source":
+      return feeds.find((f) => f.id === nav.sourceId)?.title ?? "订阅";
+  }
+}
+
+function snapshotToView(
+  row: StoredReaderItem,
+  feedTitleFallback: string,
+): RssItemView {
+  return {
+    title: row.title,
+    link: row.link ?? undefined,
+    contentSnippet: row.snippet ?? undefined,
+    subscriptionId: row.subscriptionId,
+    feedTitle: row.feedTitle || feedTitleFallback,
+    itemKey: row.itemKey,
+  };
+}
+
+function itemToPatch(
+  item: RssItemView,
+  extra: Partial<
+    Pick<ReaderItemPatchInput, "read" | "favorite" | "readLater" | "markOpened">
+  >,
+): ReaderItemPatchInput {
+  return {
+    subscriptionId: item.subscriptionId,
+    itemKey: item.itemKey,
+    title: item.title,
+    link: item.link ?? null,
+    snippet: item.contentSnippet ?? null,
+    feedTitle: item.feedTitle,
+    ...extra,
+  };
+}
+
+function snapshotToPatch(
+  row: StoredReaderItem,
+  extra: Partial<
+    Pick<ReaderItemPatchInput, "read" | "favorite" | "readLater" | "markOpened">
+  >,
+): ReaderItemPatchInput {
+  return {
+    subscriptionId: row.subscriptionId,
+    itemKey: row.itemKey,
+    title: row.title,
+    link: row.link ?? null,
+    snippet: row.snippet ?? null,
+    feedTitle: row.feedTitle,
+    ...extra,
+  };
+}
+
+function rowToOpenPatch(row: ListRow): ReaderItemPatchInput {
+  if (row.kind === "rss") {
+    return itemToPatch(row.item, { read: true, markOpened: true });
+  }
+  return snapshotToPatch(row.row, { read: true, markOpened: true });
+}
+
+async function fetchFeedJsonForAdd(url: string): Promise<RssFeedJson> {
   const normalized = normalizeFeedUrlInput(url);
   const api = `/api/rss?url=${encodeURIComponent(normalized)}`;
   const res = await fetch(api);
   const data: unknown = await res.json();
   if (!res.ok) {
-    const err = data as RssApiErrorJson;
+    const err = data as { error?: string };
     throw new Error(err.error || "加载失败");
   }
   return data as RssFeedJson;
-}
-
-function formatArticleDate(item: RssItemJson): string | null {
-  const raw = item.isoDate || item.pubDate;
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-}
-
-function itemsMatch(a: RssItemJson, b: RssItemJson): boolean {
-  if (a.guid && b.guid) return a.guid === b.guid;
-  if (a.link && b.link) return a.link === b.link;
-  return (
-    a.title === b.title &&
-    (a.isoDate || a.pubDate || "") === (b.isoDate || b.pubDate || "")
-  );
-}
-
-function listItemKey(item: RssItemJson, group: string, index: number): string {
-  if (item.guid) return `g:${item.guid}`;
-  if (item.link) return `l:${item.link}`;
-  return `${group}:${index}:${item.title}`;
-}
-
-function initialExpandedGroups(feed: RssFeedJson): Set<string> {
-  if (!feed.items.length) return new Set();
-  const first =
-    feed.items[0]?.categories?.[0]?.trim() || UNCATEGORIZED;
-  return new Set([first]);
 }
 
 export function ReaderApp() {
@@ -72,39 +178,59 @@ export function ReaderApp() {
     feeds,
     addFeed,
     removeFeed,
-    updateFeedTitle,
     importLocalFeedsToCloud,
     feedSource,
     cloudLoading,
     cloudError,
     localFeedCount,
     authLoading,
+    updateFeedFolder,
   } = useFeeds();
+
+  const {
+    folders,
+    readerItems,
+    getReaderRow,
+    addFolder,
+    deleteFolder,
+    patchReaderItems,
+    remoteLoading: readerRemoteLoading,
+    remoteError: readerRemoteError,
+  } = useReaderLibrary();
+
   const { isSignedIn, isLoaded: clerkLoaded } = useAuth();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [nav, setNav] = useState<ReaderNav>({ kind: "all" });
+  const [mergedItems, setMergedItems] = useState<RssItemView[]>([]);
+  const [mergeErrors, setMergeErrors] = useState<
+    { subscriptionId: string; title: string; message: string }[]
+  >([]);
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const [lastUpdatedMs, setLastUpdatedMs] = useState<number | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeItem, setActiveItem] = useState<RssItemView | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileShowReader, setMobileShowReader] = useState(false);
+  const [isLg, setIsLg] = useState(false);
 
-  const selected = useMemo(
-    () => feeds.find((f) => f.id === selectedId) ?? null,
-    [feeds, selectedId],
-  );
-
-  const [feedData, setFeedData] = useState<RssFeedJson | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeItem, setActiveItem] = useState<RssItemJson | null>(null);
-
+  const [showAddFeed, setShowAddFeed] = useState(false);
   const [newUrl, setNewUrl] = useState("");
   const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState("");
   const [importingLocal, setImportingLocal] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    () => new Set(),
+  const [error, setError] = useState<string | null>(null);
+
+  const [newFolderName, setNewFolderName] = useState("");
+
+  const isDark = useSyncExternalStore(
+    subscribeStoredTheme,
+    getStoredThemeDark,
+    () => false,
   );
 
-  const [isLg, setIsLg] = useState(false);
-  const [mobileShowReader, setMobileShowReader] = useState(false);
+  const [storedAllUnread, setStoredAllUnread] = useState(0);
 
   useLayoutEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -114,80 +240,308 @@ export function ReaderApp() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  const categoryGroups = useMemo(() => {
-    if (!feedData?.items.length) return [];
-    const map = new Map<string, RssItemJson[]>();
-    for (const item of feedData.items) {
-      const label = item.categories?.[0]?.trim() || UNCATEGORIZED;
-      if (!map.has(label)) map.set(label, []);
-      map.get(label)!.push(item);
-    }
-    return Array.from(map.entries()).sort((a, b) => {
-      if (a[0] === UNCATEGORIZED) return 1;
-      if (b[0] === UNCATEGORIZED) return -1;
-      return a[0].localeCompare(b[0], "zh-CN");
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) root.classList.add("dark");
+    else root.classList.remove("dark");
+  }, [isDark]);
+
+  const subs = useMemo(
+    () => subscriptionsForNav(nav, feeds),
+    [nav, feeds],
+  );
+  const subsKey = useMemo(() => subs.map((s) => s.id).join(","), [subs]);
+
+  const subsRef = useRef(subs);
+  const navRef = useRef(nav);
+  const getReaderRowRef = useRef(getReaderRow);
+
+  useEffect(() => {
+    subsRef.current = subs;
+    navRef.current = nav;
+    getReaderRowRef.current = getReaderRow;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const currentSubs = subsRef.current;
+      const kind = navRef.current.kind;
+      if (
+        kind === "read_later" ||
+        kind === "favorites" ||
+        kind === "recent"
+      ) {
+        setMergedItems([]);
+        setMergeErrors([]);
+        setMergeLoading(false);
+        return;
+      }
+      if (currentSubs.length === 0) {
+        setMergedItems([]);
+        setMergeErrors([]);
+        setMergeLoading(false);
+        return;
+      }
+      setMergeLoading(true);
+      setMergeErrors([]);
+      void mergeFeedItems(currentSubs).then((res) => {
+        if (cancelled) return;
+        setMergedItems(res.items);
+        setMergeErrors(res.errors);
+        setMergeLoading(false);
+        setLastUpdatedMs(Date.now());
+        if (navRef.current.kind === "all") {
+          const unread = res.items.filter(
+            (it) =>
+              !getReaderRowRef.current(it.subscriptionId, it.itemKey)?.readAt,
+          ).length;
+          setStoredAllUnread(unread);
+        }
+      });
     });
-  }, [feedData]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- subsKey 已编码订阅集合，避免阅读状态变化触发重复合并
+  }, [nav.kind, subsKey]);
 
-  const refresh = useCallback(async (url: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const json = await fetchFeedJson(url);
-      setFeedData(json);
-      setActiveItem(null);
-      setMobileShowReader(false);
-      setExpandedGroups(initialExpandedGroups(json));
-    } catch (e) {
-      setFeedData(null);
-      setError(e instanceof Error ? e.message : "加载失败");
-    } finally {
-      setLoading(false);
+  const smartRows: ListRow[] = useMemo(() => {
+    if (nav.kind === "read_later") {
+      return readerItems
+        .filter((r) => r.readLater)
+        .map((row) => ({ kind: "snapshot" as const, row }));
     }
-  }, []);
+    if (nav.kind === "favorites") {
+      return readerItems
+        .filter((r) => r.favorite)
+        .map((row) => ({ kind: "snapshot" as const, row }));
+    }
+    if (nav.kind === "recent") {
+      return [...readerItems]
+        .filter((r) => r.lastOpenedAt)
+        .sort(
+          (a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0),
+        )
+        .slice(0, 200)
+        .map((row) => ({ kind: "snapshot" as const, row }));
+    }
+    return [];
+  }, [nav.kind, readerItems]);
 
-  const handleSelectFeed = useCallback(
-    async (id: string, url: string) => {
-      setSelectedId(id);
-      setSidebarOpen(false);
-      await refresh(url);
-    },
-    [refresh],
+  const rssRows: ListRow[] = useMemo(
+    () => mergedItems.map((item) => ({ kind: "rss" as const, item })),
+    [mergedItems],
   );
 
-  useEffect(() => {
-    if (selectedId !== null || feeds.length === 0) return;
-    const first = feeds[0];
-    queueMicrotask(() => {
-      void handleSelectFeed(first.id, first.url);
-    });
-  }, [feeds, handleSelectFeed, selectedId]);
+  const baseRows: ListRow[] =
+    nav.kind === "read_later" ||
+    nav.kind === "favorites" ||
+    nav.kind === "recent"
+      ? smartRows
+      : rssRows;
 
-  useEffect(() => {
-    if (!selectedId) return;
-    if (feeds.some((f) => f.id === selectedId)) return;
-    queueMicrotask(() => {
-      setSelectedId(null);
-      setFeedData(null);
-      setActiveItem(null);
-      setMobileShowReader(false);
+  const filteredRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return baseRows;
+    return baseRows.filter((row) => {
+      const title =
+        row.kind === "rss" ? row.item.title : row.row.title;
+      const src =
+        row.kind === "rss" ? row.item.feedTitle : row.row.feedTitle;
+      const sn =
+        row.kind === "rss"
+          ? (row.item.contentSnippet ?? "")
+          : (row.row.snippet ?? "");
+      const hay = `${title}\n${src}\n${sn}`.toLowerCase();
+      return hay.includes(q);
     });
-  }, [feeds, selectedId]);
+  }, [baseRows, searchQuery]);
 
-  const handleAdd = useCallback(async () => {
+  const unreadWhenOnAll = useMemo(() => {
+    if (nav.kind !== "all") return null;
+    if (mergedItems.length === 0) return 0;
+    let n = 0;
+    for (const it of mergedItems) {
+      const row = getReaderRow(it.subscriptionId, it.itemKey);
+      if (!row?.readAt) n++;
+    }
+    return n;
+  }, [nav.kind, mergedItems, getReaderRow]);
+
+  const unreadTotal =
+    unreadWhenOnAll !== null ? unreadWhenOnAll : storedAllUnread;
+
+  const unreadByFeedId = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const it of mergedItems) {
+      const row = getReaderRow(it.subscriptionId, it.itemKey);
+      if (!row?.readAt) {
+        map[it.subscriptionId] = (map[it.subscriptionId] ?? 0) + 1;
+      }
+    }
+    return map;
+  }, [mergedItems, getReaderRow]);
+
+  const readLaterCount = useMemo(
+    () => readerItems.filter((r) => r.readLater).length,
+    [readerItems],
+  );
+  const favoritesCount = useMemo(
+    () => readerItems.filter((r) => r.favorite).length,
+    [readerItems],
+  );
+  const recentCount = useMemo(
+    () => readerItems.filter((r) => r.lastOpenedAt).length,
+    [readerItems],
+  );
+
+  const isUnread = useCallback(
+    (row: ListRow) => {
+      const sid =
+        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
+      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
+      return !getReaderRow(sid, key)?.readAt;
+    },
+    [getReaderRow],
+  );
+
+  const isFavorite = useCallback(
+    (row: ListRow) => {
+      const sid =
+        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
+      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
+      return Boolean(getReaderRow(sid, key)?.favorite);
+    },
+    [getReaderRow],
+  );
+
+  const isReadLater = useCallback(
+    (row: ListRow) => {
+      const sid =
+        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
+      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
+      return Boolean(getReaderRow(sid, key)?.readLater);
+    },
+    [getReaderRow],
+  );
+
+  const handleSelectRow = useCallback(
+    async (row: ListRow) => {
+      setActiveKey(listRowCompositeKey(row));
+      setError(null);
+      try {
+        if (row.kind === "rss") {
+          setActiveItem(row.item);
+          setMobileShowReader(true);
+          await patchReaderItems([rowToOpenPatch(row)]);
+          return;
+        }
+        const sub = feeds.find((f) => f.id === row.row.subscriptionId);
+        if (sub) {
+          const full = await fetchRssItemViewForSubscription(sub, row.row.itemKey);
+          if (full) {
+            setActiveItem(full);
+          } else {
+            setActiveItem(snapshotToView(row.row, sub.title));
+          }
+        } else {
+          setActiveItem(snapshotToView(row.row, row.row.feedTitle));
+        }
+        setMobileShowReader(true);
+        await patchReaderItems([rowToOpenPatch(row)]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "打开失败");
+      }
+    },
+    [feeds, patchReaderItems],
+  );
+
+  const handleToggleFavorite = useCallback(
+    async (row: ListRow) => {
+      const sid =
+        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
+      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
+      const next = !getReaderRow(sid, key)?.favorite;
+      const patch =
+        row.kind === "rss"
+          ? itemToPatch(row.item, { favorite: next })
+          : snapshotToPatch(row.row, { favorite: next });
+      try {
+        await patchReaderItems([patch]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "更新失败");
+      }
+    },
+    [getReaderRow, patchReaderItems],
+  );
+
+  const handleToggleReadLater = useCallback(
+    async (row: ListRow) => {
+      const sid =
+        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
+      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
+      const next = !getReaderRow(sid, key)?.readLater;
+      const patch =
+        row.kind === "rss"
+          ? itemToPatch(row.item, { readLater: next })
+          : snapshotToPatch(row.row, { readLater: next });
+      try {
+        await patchReaderItems([patch]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "更新失败");
+      }
+    },
+    [getReaderRow, patchReaderItems],
+  );
+
+  const handleMarkAllRead = useCallback(async () => {
+    if (filteredRows.length === 0) return;
+    const patches = filteredRows.map((row) =>
+      row.kind === "rss"
+        ? itemToPatch(row.item, { read: true })
+        : snapshotToPatch(row.row, { read: true }),
+    );
+    try {
+      await patchReaderItems(patches);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败");
+    }
+  }, [filteredRows, patchReaderItems]);
+
+  const handleRefresh = useCallback(() => {
+    void (async () => {
+      if (
+        nav.kind === "read_later" ||
+        nav.kind === "favorites" ||
+        nav.kind === "recent"
+      ) {
+        return;
+      }
+      if (subs.length === 0) return;
+      setMergeLoading(true);
+      try {
+        const res = await mergeFeedItems(subs);
+        setMergedItems(res.items);
+        setMergeErrors(res.errors);
+        setLastUpdatedMs(Date.now());
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "刷新失败");
+      } finally {
+        setMergeLoading(false);
+      }
+    })();
+  }, [nav.kind, subs]);
+
+  const handleAddFeed = useCallback(async () => {
     const normalized = normalizeFeedUrlInput(newUrl);
     if (!normalized) return;
     setAdding(true);
     setError(null);
     try {
-      const json = await fetchFeedJson(normalized);
+      const json = await fetchFeedJsonForAdd(normalized);
       const entry = await addFeed({ url: normalized, title: json.title });
       setNewUrl("");
-      setSelectedId(entry.id);
-      setFeedData(json);
-      setActiveItem(null);
-      setMobileShowReader(false);
-      setExpandedGroups(initialExpandedGroups(json));
+      setShowAddFeed(false);
+      setNav({ kind: "source", sourceId: entry.id });
       setSidebarOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "无法添加该源");
@@ -196,22 +550,35 @@ export function ReaderApp() {
     }
   }, [addFeed, newUrl]);
 
-  const beginEdit = useCallback((id: string, title: string) => {
-    setEditingId(id);
-    setEditDraft(title);
-  }, []);
-
-  const commitEdit = useCallback(async () => {
-    if (!editingId) return;
+  const handleCreateFolder = useCallback(async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    setError(null);
     try {
-      await updateFeedTitle(editingId, editDraft);
-      setEditingId(null);
+      await addFolder(name);
+      setNewFolderName("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "重命名失败");
+      setError(e instanceof Error ? e.message : "创建失败");
     }
-  }, [editDraft, editingId, updateFeedTitle]);
+  }, [addFolder, newFolderName]);
 
-  const handleImportLocalToCloud = useCallback(async () => {
+  const handleDeleteFolder = useCallback(
+    async (id: string) => {
+      if (!window.confirm("删除此分类？订阅将变为未分类。")) return;
+      setError(null);
+      try {
+        await deleteFolder(id);
+        setNav((n) =>
+          n.kind === "folder" && n.folderId === id ? { kind: "all" } : n,
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "删除失败");
+      }
+    },
+    [deleteFolder],
+  );
+
+  const handleImportLocal = useCallback(async () => {
     setImportingLocal(true);
     setError(null);
     try {
@@ -223,460 +590,204 @@ export function ReaderApp() {
     }
   }, [importLocalFeedsToCloud]);
 
-  const itemIsActive = useCallback(
-    (item: RssItemJson) => activeItem !== null && itemsMatch(activeItem, item),
-    [activeItem],
-  );
-
-  const activeDateLabel = activeItem
-    ? formatArticleDate(activeItem)
-    : null;
+  const updatedLabel = lastUpdatedMs
+    ? `更新于 ${new Intl.DateTimeFormat("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(lastUpdatedMs))}`
+    : "";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:p-6">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted)]">
-            Sky RSS
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text)]">
-            在线 RSS 阅读
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <GlassButton
-              className="lg:hidden"
-              type="button"
-              aria-expanded={sidebarOpen}
-              aria-controls="feed-sidebar"
-              onClick={() => setSidebarOpen((v) => !v)}
-            >
-              {sidebarOpen ? "收起订阅" : "订阅栏"}
-            </GlassButton>
-            {selected && (
-              <GlassButton
-                type="button"
-                onClick={() => void refresh(selected.url)}
-                disabled={loading}
-              >
-                刷新当前源
-              </GlassButton>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-2 border-l border-[color:var(--glass-border)] pl-2">
-            {clerkLoaded && !isSignedIn && (
-              <SignInButton mode="modal">
-                <GlassButton type="button" disabled={authLoading}>
-                  {authLoading ? "…" : "登录以同步订阅"}
-                </GlassButton>
-              </SignInButton>
-            )}
-            {clerkLoaded && isSignedIn && <UserButton />}
-          </div>
-        </div>
-      </header>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <ReaderTopBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onRefresh={handleRefresh}
+        onMarkAllRead={handleMarkAllRead}
+        onToggleTheme={() => setStoredThemeDark(!isDark)}
+        isDark={isDark}
+        refreshDisabled={mergeLoading}
+        authSlot={
+          <ReaderAuthSlot
+            clerkLoaded={clerkLoaded}
+            isSignedIn={Boolean(isSignedIn)}
+            authLoading={authLoading}
+          />
+        }
+      />
 
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 gap-4 overflow-hidden",
-          "grid-cols-1 lg:grid-cols-[minmax(260px,280px)_minmax(280px,0.38fr)_minmax(0,1fr)]",
-          "lg:items-stretch",
-        )}
-      >
-        <aside
-          id="feed-sidebar"
-          className={cn(
-            "flex min-h-0 w-full shrink-0 flex-col gap-3 overflow-hidden lg:w-72",
-            sidebarOpen ? "flex" : "hidden lg:flex",
-          )}
-        >
-          <GlassPanel className="flex flex-col gap-3">
-            <p className="text-sm font-medium text-[color:var(--text)]">
-              添加订阅
-            </p>
+      {error ? (
+        <div className="shrink-0 border-b border-rose-400/30 bg-rose-500/10 px-4 py-2 text-center text-sm text-rose-800 dark:text-rose-100">
+          {error}
+          <button
+            type="button"
+            className="ml-2 underline"
+            onClick={() => setError(null)}
+          >
+            关闭
+          </button>
+        </div>
+      ) : null}
+
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:gap-4 md:p-4 lg:flex-row">
+        <ReaderSidebar
+          isLargeScreen={isLg}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
+          nav={nav}
+          onNav={(n) => {
+            setNav(n);
+            setSidebarOpen(false);
+            setActiveItem(null);
+            setActiveKey(null);
+            setMobileShowReader(false);
+          }}
+          folders={folders}
+          feeds={feeds}
+          unreadTotal={unreadTotal}
+          unreadByFeedId={unreadByFeedId}
+          readLaterCount={readLaterCount}
+          favoritesCount={favoritesCount}
+          recentCount={recentCount}
+          newFolderName={newFolderName}
+          setNewFolderName={setNewFolderName}
+          onCreateFolder={() => void handleCreateFolder()}
+          onDeleteFolder={(id) => void handleDeleteFolder(id)}
+          onFeedFolderChange={(feedId, folderId) => {
+            void (async () => {
+              try {
+                await updateFeedFolder(feedId, folderId);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "更新失败");
+              }
+            })();
+          }}
+          onRemoveFeed={(id) => {
+            void (async () => {
+              try {
+                await removeFeed(id);
+                setNav((n) =>
+                  n.kind === "source" && n.sourceId === id
+                    ? { kind: "all" }
+                    : n,
+                );
+                if (activeItem?.subscriptionId === id) {
+                  setActiveItem(null);
+                  setActiveKey(null);
+                  setMobileShowReader(false);
+                }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "删除失败");
+              }
+            })();
+          }}
+          onOpenAddFeed={() => {
+            setShowAddFeed(true);
+            setSidebarOpen(false);
+          }}
+          cloudLoading={cloudLoading || readerRemoteLoading}
+          cloudError={cloudError ?? readerRemoteError}
+        />
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-h-0 lg:min-w-0 lg:flex-[0.42]">
+          {!isLg ? (
+            <GlassButton
+              type="button"
+              className="shrink-0 lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              订阅栏
+            </GlassButton>
+          ) : null}
+
+          <ArticleListColumn
+            title={listColumnTitle(nav, folders, feeds)}
+            rows={filteredRows}
+            activeKey={activeKey}
+            onSelectRow={(row) => void handleSelectRow(row)}
+            isUnread={isUnread}
+            onToggleFavorite={(row) => void handleToggleFavorite(row)}
+            onToggleReadLater={(row) => void handleToggleReadLater(row)}
+            isFavorite={isFavorite}
+            isReadLater={isReadLater}
+            mergeErrors={mergeErrors.map((e) => ({
+              title: e.title,
+              message: e.message,
+            }))}
+            loading={mergeLoading}
+            onMarkAllRead={() => void handleMarkAllRead()}
+            isLargeScreen={isLg}
+            mobileShowReader={mobileShowReader}
+            onOpenMobileMenu={() => setSidebarOpen(true)}
+            onRefresh={handleRefresh}
+            updatedLabel={updatedLabel}
+          />
+        </div>
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0 lg:min-w-0 lg:flex-1">
+          <ArticleReaderColumn
+            item={activeItem}
+            isLargeScreen={isLg}
+            mobileShowReader={mobileShowReader}
+            onBack={() => setMobileShowReader(false)}
+          />
+        </div>
+      </div>
+
+      {showAddFeed ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <GlassPanel className="w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-[color:var(--text)]">
+                添加订阅
+              </p>
+              <GlassButton type="button" onClick={() => setShowAddFeed(false)}>
+                关闭
+              </GlassButton>
+            </div>
             <GlassInput
+              className="mt-3"
               type="url"
               inputMode="url"
               placeholder="https://example.com/feed.xml"
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") void handleAdd();
+                if (e.key === "Enter") void handleAddFeed();
               }}
-              aria-label="RSS 订阅地址"
             />
             <GlassButton
               type="button"
-              onClick={() => void handleAdd()}
+              className="mt-3 w-full"
               disabled={adding || !newUrl.trim()}
+              onClick={() => void handleAddFeed()}
             >
               {adding ? "验证并添加…" : "添加订阅"}
             </GlassButton>
-            {clerkLoaded && isSignedIn && localFeedCount > 0 && (
+            {clerkLoaded && isSignedIn && localFeedCount > 0 ? (
               <GlassButton
                 type="button"
-                className="w-full"
-                onClick={() => void handleImportLocalToCloud()}
+                className="mt-2 w-full"
                 disabled={importingLocal}
+                onClick={() => void handleImportLocal()}
               >
                 {importingLocal
                   ? "正在导入本地订阅…"
                   : "将本地订阅导入云端"}
               </GlassButton>
-            )}
-          </GlassPanel>
-
-          <GlassPanel className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-0">
-            <div className="border-b border-[color:var(--glass-border)] px-4 py-3 text-sm font-medium text-[color:var(--text)]">
-              我的订阅 ({feeds.length})
-              {feedSource === "cloud" && cloudLoading && (
-                <span className="ml-2 text-xs font-normal text-[color:var(--muted)]">
-                  云端加载中…
-                </span>
-              )}
-            </div>
-            {feedSource === "cloud" && cloudError && (
-              <div className="mx-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-50">
-                {cloudError}
-              </div>
-            )}
-            <ul className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2">
-              {feeds.length === 0 ? (
-                <li className="px-2 py-6 text-center text-sm text-[color:var(--muted)]">
-                  暂无订阅，请在上方添加 RSS 地址。
-                </li>
-              ) : (
-                feeds.map((f) => {
-                  const active = f.id === selectedId;
-                  return (
-                    <li key={f.id}>
-                      <div
-                        className={cn(
-                          "flex flex-col gap-2 rounded-xl px-2 py-2 transition-colors",
-                          active
-                            ? "bg-[color:var(--glass-active)]"
-                            : "hover:bg-[color:var(--hover-row)]",
-                        )}
-                      >
-                        {editingId === f.id ? (
-                          <div className="flex flex-col gap-2">
-                            <GlassInput
-                              value={editDraft}
-                              onChange={(e) => setEditDraft(e.target.value)}
-                              aria-label="编辑订阅标题"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") void commitEdit();
-                                if (e.key === "Escape") setEditingId(null);
-                              }}
-                            />
-                            <div className="flex gap-2">
-                              <GlassButton
-                                type="button"
-                                className="flex-1"
-                                onClick={() => void commitEdit()}
-                              >
-                                保存
-                              </GlassButton>
-                              <GlassButton
-                                type="button"
-                                className="flex-1"
-                                onClick={() => setEditingId(null)}
-                              >
-                                取消
-                              </GlassButton>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="w-full text-left text-sm font-medium text-[color:var(--text)]"
-                              onClick={() => void handleSelectFeed(f.id, f.url)}
-                            >
-                              {f.title}
-                            </button>
-                            <p className="truncate text-xs text-[color:var(--muted)]">
-                              {f.url}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              <GlassButton
-                                type="button"
-                                className="flex-1 text-xs"
-                                onClick={() => beginEdit(f.id, f.title)}
-                              >
-                                重命名
-                              </GlassButton>
-                              <GlassButton
-                                type="button"
-                                className="flex-1 text-xs"
-                                onClick={() =>
-                                  void handleSelectFeed(f.id, f.url)
-                                }
-                                disabled={loading && active}
-                              >
-                                打开
-                              </GlassButton>
-                              <GlassButton
-                                type="button"
-                                className="text-xs text-rose-600"
-                                onClick={() => {
-                                  void (async () => {
-                                    try {
-                                      await removeFeed(f.id);
-                                      if (selectedId === f.id) {
-                                        setSelectedId(null);
-                                        setFeedData(null);
-                                        setActiveItem(null);
-                                        setMobileShowReader(false);
-                                      }
-                                    } catch (e) {
-                                      setError(
-                                        e instanceof Error
-                                          ? e.message
-                                          : "删除失败",
-                                      );
-                                    }
-                                  })();
-                                }}
-                              >
-                                删除
-                              </GlassButton>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </GlassPanel>
-        </aside>
-
-        <GlassPanel
-          className={cn(
-            "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0",
-            !isLg && mobileShowReader && activeItem && "hidden",
-          )}
-        >
-            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[color:var(--glass-border)] px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-xs text-[color:var(--muted)]">当前频道</p>
-                <h2 className="text-lg font-semibold text-[color:var(--text)]">
-                  {feedData?.title ?? "未选择订阅"}
-                </h2>
-                {feedData?.link && (
-                  <a
-                    href={feedData.link}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="text-xs text-sky-700 underline-offset-2 hover:underline"
-                  >
-                    打开站点主页
-                  </a>
-                )}
-              </div>
-              {loading && (
-                <span className="text-xs text-[color:var(--muted)]">
-                  加载中…
-                </span>
-              )}
-            </div>
-
-            {error && (
-              <div className="mx-4 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-                {error}
-              </div>
-            )}
-
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-4 pt-1">
-              {!loading &&
-                !error &&
-                feedData &&
-                categoryGroups.map(([groupName, groupItems]) => (
-                  <details
-                    key={groupName}
-                    className="group border-b border-[color:var(--glass-border)] last:border-b-0"
-                    open={expandedGroups.has(groupName)}
-                    onToggle={(e) => {
-                      const open = e.currentTarget.open;
-                      setExpandedGroups((prev) => {
-                        const next = new Set(prev);
-                        if (open) next.add(groupName);
-                        else next.delete(groupName);
-                        return next;
-                      });
-                    }}
-                  >
-                    <summary className="cursor-pointer list-none px-2 py-2 [&::-webkit-details-marker]:hidden">
-                      <div className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[color:var(--hover-row)]">
-                        <span className="text-sm font-medium text-[color:var(--text)]">
-                          {groupName}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs text-[color:var(--muted)]">
-                          {groupItems.length}
-                        </span>
-                      </div>
-                    </summary>
-                    <ul className="flex flex-col gap-1 pb-2 pl-1">
-                      {groupItems.map((item, idx) => {
-                        const key = listItemKey(item, groupName, idx);
-                        const isActive = itemIsActive(item);
-                        const dateStr = formatArticleDate(item);
-                        return (
-                          <li key={key}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveItem(item);
-                                setMobileShowReader(true);
-                              }}
-                              className={cn(
-                                "w-full rounded-xl px-3 py-2.5 text-left transition-colors",
-                                isActive
-                                  ? "bg-[color:var(--glass-active)]"
-                                  : "hover:bg-[color:var(--hover-row)]",
-                              )}
-                            >
-                              <p className="text-sm font-medium leading-snug text-[color:var(--text)]">
-                                {item.title}
-                              </p>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
-                                {dateStr && <span>{dateStr}</span>}
-                                {item.author && (
-                                  <>
-                                    {dateStr && (
-                                      <span aria-hidden className="opacity-40">
-                                        ·
-                                      </span>
-                                    )}
-                                    <span>{item.author}</span>
-                                  </>
-                                )}
-                              </div>
-                              {item.categories &&
-                                item.categories.length > 0 && (
-                                  <div className="mt-2 flex flex-wrap gap-1">
-                                    {item.categories.map((tag) => (
-                                      <span
-                                        key={tag}
-                                        className="rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--muted)]"
-                                      >
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </details>
-                ))}
-              {!loading &&
-                !error &&
-                feedData &&
-                feedData.items.length === 0 && (
-                  <p className="px-3 py-8 text-center text-sm text-[color:var(--muted)]">
-                    此源暂无条目。
-                  </p>
-                )}
-              {!feedData && !loading && !error && (
-                <p className="px-3 py-10 text-center text-sm text-[color:var(--muted)]">
-                  请选择订阅栏中的源，或添加新的 RSS 地址。
-                </p>
-              )}
-            </div>
-          </GlassPanel>
-
-          <GlassPanel
-            className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0",
-              "min-h-[min(70dvh,560px)] lg:min-h-0",
-              !isLg && (!activeItem || !mobileShowReader) && "hidden",
-            )}
-          >
-            {activeItem ? (
-              <>
-                <div className="sticky top-0 z-10 shrink-0 border-b border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] px-4 py-3 backdrop-blur-md">
-                  {!isLg && mobileShowReader && (
-                    <div className="mb-2">
-                      <GlassButton
-                        type="button"
-                        className="w-full text-sm sm:w-auto"
-                        onClick={() => setMobileShowReader(false)}
-                      >
-                        ← 返回列表
-                      </GlassButton>
-                    </div>
-                  )}
-                  <p className="text-xs text-[color:var(--muted)]">阅读</p>
-                  <h3 className="mt-0.5 text-base font-semibold leading-snug text-[color:var(--text)]">
-                    {activeItem.title}
-                  </h3>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
-                    {activeDateLabel && <span>{activeDateLabel}</span>}
-                    {activeItem.author && (
-                      <>
-                        {activeDateLabel && (
-                          <span className="opacity-40" aria-hidden>
-                            ·
-                          </span>
-                        )}
-                        <span>{activeItem.author}</span>
-                      </>
-                    )}
-                  </div>
-                  {activeItem.categories &&
-                    activeItem.categories.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {activeItem.categories.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--muted)]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                  <div className="article-reading-shell px-4 py-4">
-                    <ArticleBody
-                      html={activeItem.contentHtml}
-                      fallbackSnippet={activeItem.contentSnippet}
-                    />
-                  </div>
-                </div>
-
-                {activeItem.link && (
-                  <div className="shrink-0 border-t border-[color:var(--glass-border)] px-4 py-3">
-                    <GlassLink
-                      href={activeItem.link}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="w-full text-center text-sm"
-                    >
-                      在浏览器中打开原文
-                    </GlassLink>
-                  </div>
-                )}
-              </>
+            ) : null}
+            {feedSource === "cloud" ? (
+              <p className="mt-2 text-xs text-[color:var(--muted)]">
+                登录后订阅与阅读状态保存在云端。
+              </p>
             ) : (
-              <div className="shrink-0 border-b border-[color:var(--glass-border)] px-4 py-3">
-                <p className="text-xs text-[color:var(--muted)]">阅读</p>
-                <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  在条目列表中选择一篇文章，在此阅读正文或摘要。
-                </p>
-              </div>
+              <p className="mt-2 text-xs text-[color:var(--muted)]">
+                未登录时数据仅保存在本浏览器。
+              </p>
             )}
           </GlassPanel>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -14,6 +14,13 @@ export type RssItemJson = {
   contentHtml?: string;
 };
 
+/** 合并多源后的列表视图：在 RssItemJson 上注入订阅维度 */
+export type RssItemView = RssItemJson & {
+  subscriptionId: string;
+  feedTitle: string;
+  itemKey: string;
+};
+
 export type RssFeedJson = {
   title: string;
   description: string;

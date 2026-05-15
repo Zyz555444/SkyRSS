@@ -8,6 +8,13 @@
       "when": 1778767252507,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778850085276,
+      "tag": "0001_jazzy_skreet",
+      "breakpoints": true
     }
   ]
 }

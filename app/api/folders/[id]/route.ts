@@ -3,29 +3,24 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { folders, subscriptions } from "@/db/schema";
+import { folders, type FolderRow } from "@/db/schema";
 import { requireDbUser } from "@/lib/require-db-user";
 
-const patchBodySchema = z
-  .object({
-    title: z.string().min(1).optional(),
-    folderId: z.string().uuid().nullable().optional(),
-  })
-  .refine((d) => d.title !== undefined || d.folderId !== undefined, {
-    message: "至少需要 title 或 folderId",
-  });
+const patchBodySchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  sortOrder: z.number().int().optional(),
+});
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-function rowToJson(row: typeof subscriptions.$inferSelect) {
+function rowToJson(row: FolderRow) {
   return {
     id: row.id,
-    url: row.url,
-    title: row.title,
-    folderId: row.folderId ?? null,
+    name: row.name,
+    sortOrder: row.sortOrder,
     createdAt: row.createdAt.getTime(),
   };
 }
+
+type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { userId } = await auth();
@@ -55,45 +50,29 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "请求体无效" }, { status: 400 });
   }
 
+  if (
+    parsed.data.name === undefined &&
+    parsed.data.sortOrder === undefined
+  ) {
+    return NextResponse.json({ error: "无有效字段" }, { status: 400 });
+  }
+
   const db = getDb();
-
-  if (parsed.data.folderId !== undefined && parsed.data.folderId !== null) {
-    const [owned] = await db
-      .select({ id: folders.id })
-      .from(folders)
-      .where(
-        and(
-          eq(folders.id, parsed.data.folderId),
-          eq(folders.userId, result.user.id),
-        ),
-      )
-      .limit(1);
-    if (!owned) {
-      return NextResponse.json({ error: "文件夹不存在" }, { status: 400 });
-    }
-  }
-
-  const patch: Partial<{ title: string; folderId: string | null }> = {};
-  if (parsed.data.title !== undefined) {
-    patch.title = parsed.data.title.trim();
-  }
-  if (parsed.data.folderId !== undefined) {
-    patch.folderId = parsed.data.folderId;
-  }
+  const patch: Partial<{ name: string; sortOrder: number }> = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name.trim();
+  if (parsed.data.sortOrder !== undefined)
+    patch.sortOrder = parsed.data.sortOrder;
 
   const [updated] = await db
-    .update(subscriptions)
+    .update(folders)
     .set(patch)
     .where(
-      and(
-        eq(subscriptions.id, id),
-        eq(subscriptions.userId, result.user.id),
-      ),
+      and(eq(folders.id, id), eq(folders.userId, result.user.id)),
     )
     .returning();
 
   if (!updated) {
-    return NextResponse.json({ error: "未找到订阅" }, { status: 404 });
+    return NextResponse.json({ error: "未找到文件夹" }, { status: 404 });
   }
 
   return NextResponse.json(rowToJson(updated));
@@ -116,17 +95,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
   const db = getDb();
   const deleted = await db
-    .delete(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.id, id),
-        eq(subscriptions.userId, result.user.id),
-      ),
-    )
-    .returning({ id: subscriptions.id });
+    .delete(folders)
+    .where(and(eq(folders.id, id), eq(folders.userId, result.user.id)))
+    .returning({ id: folders.id });
 
   if (deleted.length === 0) {
-    return NextResponse.json({ error: "未找到订阅" }, { status: 404 });
+    return NextResponse.json({ error: "未找到文件夹" }, { status: 404 });
   }
 
   return new Response(null, { status: 204 });

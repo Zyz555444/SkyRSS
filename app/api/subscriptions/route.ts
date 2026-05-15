@@ -1,15 +1,16 @@
 import { auth } from "@clerk/nextjs/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { subscriptions, type SubscriptionRow } from "@/db/schema";
+import { folders, subscriptions, type SubscriptionRow } from "@/db/schema";
 import { fetchRssFeedPayload, validateFeedUrl } from "@/lib/fetch-rss-feed";
 import { requireDbUser } from "@/lib/require-db-user";
 
 const postBodySchema = z.object({
   url: z.string().min(1),
   title: z.string().min(1).optional(),
+  folderId: z.string().uuid().nullable().optional(),
 });
 
 function rowToJson(row: SubscriptionRow) {
@@ -17,6 +18,7 @@ function rowToJson(row: SubscriptionRow) {
     id: row.id,
     url: row.url,
     title: row.title,
+    folderId: row.folderId ?? null,
     createdAt: row.createdAt.getTime(),
   };
 }
@@ -94,6 +96,23 @@ export async function POST(request: Request) {
   }
 
   const db = getDb();
+  const requestedFolderId = parsed.data.folderId;
+  if (requestedFolderId !== undefined && requestedFolderId !== null) {
+    const [owned] = await db
+      .select({ id: folders.id })
+      .from(folders)
+      .where(
+        and(
+          eq(folders.id, requestedFolderId),
+          eq(folders.userId, result.user.id),
+        ),
+      )
+      .limit(1);
+    if (!owned) {
+      return NextResponse.json({ error: "文件夹不存在" }, { status: 400 });
+    }
+  }
+
   try {
     const [inserted] = await db
       .insert(subscriptions)
@@ -101,6 +120,8 @@ export async function POST(request: Request) {
         userId: result.user.id,
         url: feedUrl.toString(),
         title,
+        folderId:
+          requestedFolderId === undefined ? null : requestedFolderId,
       })
       .returning();
 
