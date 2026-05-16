@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Sky RSS 阅读器",
-  description: "本地保存订阅的在线 Sky RSS 阅读器，玻璃拟态界面。",
+  description: "本地保存订阅的在线 Sky RSS 阅读器。",
 };
 
 export default function RootLayout({

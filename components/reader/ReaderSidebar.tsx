@@ -1,14 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
 import type { StoredFeed, StoredFolder } from "@/lib/reader-library-storage";
-import { GlassButton, GlassInput, GlassPanel } from "@/components/ui/glass";
+import { AppButton, AppInput } from "@/components/ui/glass";
 import { cn } from "@/lib/cn";
 import type { ReaderNav } from "@/components/reader/types";
 
 type ReaderSidebarProps = {
-  isLargeScreen: boolean;
-  mobileOpen: boolean;
-  onMobileClose: () => void;
+  open: boolean;
+  onClose: () => void;
   nav: ReaderNav;
   onNav: (n: ReaderNav) => void;
   folders: StoredFolder[];
@@ -31,17 +31,16 @@ type ReaderSidebarProps = {
 
 function navButtonClass(active: boolean) {
   return cn(
-    "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+    "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
     active
-      ? "bg-[color:var(--glass-active)] font-medium text-[color:var(--text)]"
+      ? "bg-[color:var(--accent-muted)] font-medium text-[color:var(--text)]"
       : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
   );
 }
 
 export function ReaderSidebar({
-  isLargeScreen,
-  mobileOpen,
-  onMobileClose,
+  open,
+  onClose,
   nav,
   onNav,
   folders,
@@ -66,218 +65,227 @@ export function ReaderSidebar({
   const favActive = nav.kind === "favorites";
   const recActive = nav.kind === "recent";
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   return (
     <>
-      {!isLargeScreen && mobileOpen ? (
+      {open ? (
         <button
           type="button"
-          className="fixed inset-0 z-30 bg-[color:var(--drawer-backdrop)] backdrop-blur-[2px]"
-          aria-label="关闭侧栏"
-          onClick={onMobileClose}
+          className="fixed inset-0 z-30 bg-[color:var(--drawer-backdrop)]"
+          aria-label="关闭订阅抽屉"
+          onClick={onClose}
         />
       ) : null}
 
       <aside
         id="reader-sidebar"
+        role="dialog"
+        aria-modal={open}
+        aria-hidden={!open}
+        aria-label="订阅与分类"
         className={cn(
-          "flex min-h-0 shrink-0 flex-col gap-3 overflow-hidden",
-          isLargeScreen
-            ? "relative w-full lg:w-72"
-            : cn(
-                "fixed bottom-0 left-0 top-0 z-40 flex w-[min(20rem,88vw)] max-w-full flex-col gap-3 overflow-y-auto border-r border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] p-3 shadow-2xl transition-transform duration-200 ease-out",
-                mobileOpen ? "translate-x-0" : "-translate-x-full",
-              ),
+          "fixed bottom-0 left-0 top-0 z-40 flex w-[min(20rem,88vw)] max-w-md flex-col overflow-hidden border-r border-[color:var(--border-subtle)] bg-[color:var(--surface-elevated)] shadow-[var(--shadow-lg)] transition-transform duration-200 ease-out sm:w-80",
+          open ? "translate-x-0" : "-translate-x-full pointer-events-none",
         )}
       >
-        <GlassPanel className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-base font-semibold text-[color:var(--text)]">
-              订阅
-            </p>
-            <GlassButton
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--border-subtle)] px-4 py-3">
+          <p className="text-base font-semibold text-[color:var(--text)]">订阅</p>
+          <div className="flex items-center gap-1">
+            <AppButton
               type="button"
-              className="h-9 w-9 shrink-0 rounded-full p-0 text-lg font-light"
+              className="h-9 w-9 shrink-0 rounded-lg p-0 text-lg"
               title="添加订阅"
               onClick={onOpenAddFeed}
             >
               +
-            </GlassButton>
+            </AppButton>
+            <AppButton
+              type="button"
+              variant="ghost"
+              className="h-9 w-9 shrink-0 rounded-lg p-0"
+              title="关闭"
+              onClick={onClose}
+            >
+              ×
+            </AppButton>
           </div>
-          {cloudLoading ? (
-            <p className="text-xs text-[color:var(--muted)]">云端同步中…</p>
-          ) : null}
-          {cloudError ? (
-            <p className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-2 py-1.5 text-xs text-rose-700 dark:text-rose-200">
-              {cloudError}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <section className="border-b border-[color:var(--border-subtle)] px-3 py-3">
+            {cloudLoading ? (
+              <p className="mb-2 text-xs text-[color:var(--muted)]">云端同步中…</p>
+            ) : null}
+            {cloudError ? (
+              <p className="mb-2 rounded-lg border border-rose-400/40 bg-rose-500/10 px-2 py-1.5 text-xs text-rose-700 dark:text-rose-200">
+                {cloudError}
+              </p>
+            ) : null}
+
+            <nav className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                className={navButtonClass(allActive)}
+                onClick={() => onNav({ kind: "all" })}
+              >
+                <span className="min-w-0 flex-1 truncate">全部文章</span>
+                <span className="shrink-0 rounded-md bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+                  {unreadTotal}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={navButtonClass(rlActive)}
+                onClick={() => onNav({ kind: "read_later" })}
+              >
+                <span className="min-w-0 flex-1 truncate">稍后阅读</span>
+                <span className="shrink-0 rounded-md bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+                  {readLaterCount}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={navButtonClass(favActive)}
+                onClick={() => onNav({ kind: "favorites" })}
+              >
+                <span className="min-w-0 flex-1 truncate">收藏</span>
+                <span className="shrink-0 rounded-md bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+                  {favoritesCount}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={navButtonClass(recActive)}
+                onClick={() => onNav({ kind: "recent" })}
+              >
+                <span className="min-w-0 flex-1 truncate">最近阅读</span>
+                <span className="shrink-0 rounded-md bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+                  {recentCount}
+                </span>
+              </button>
+            </nav>
+          </section>
+
+          <section className="border-b border-[color:var(--border-subtle)] px-3 py-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--muted)]">
+              分类
             </p>
-          ) : null}
-
-          <nav className="flex flex-col gap-0.5">
-            <button
-              type="button"
-              className={navButtonClass(allActive)}
-              onClick={() => onNav({ kind: "all" })}
-            >
-              <span className="text-lg" aria-hidden>
-                📄
-              </span>
-              <span className="min-w-0 flex-1 truncate">全部文章</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
-                {unreadTotal}
-              </span>
-            </button>
-            <button
-              type="button"
-              className={navButtonClass(rlActive)}
-              onClick={() => onNav({ kind: "read_later" })}
-            >
-              <span className="text-lg" aria-hidden>
-                📋
-              </span>
-              <span className="min-w-0 flex-1 truncate">稍后阅读</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
-                {readLaterCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              className={navButtonClass(favActive)}
-              onClick={() => onNav({ kind: "favorites" })}
-            >
-              <span className="text-lg" aria-hidden>
-                ⭐
-              </span>
-              <span className="min-w-0 flex-1 truncate">收藏</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
-                {favoritesCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              className={navButtonClass(recActive)}
-              onClick={() => onNav({ kind: "recent" })}
-            >
-              <span className="text-lg" aria-hidden>
-                🕐
-              </span>
-              <span className="min-w-0 flex-1 truncate">最近阅读</span>
-              <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
-                {recentCount}
-              </span>
-            </button>
-          </nav>
-        </GlassPanel>
-
-        <GlassPanel className="flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-            分类
-          </p>
-          <div className="flex gap-2">
-            <GlassInput
-              className="min-w-0 flex-1 text-sm"
-              placeholder="新分类名称"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onCreateFolder();
-              }}
-            />
-            <GlassButton type="button" className="shrink-0" onClick={onCreateFolder}>
-              添加
-            </GlassButton>
-          </div>
-          <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
-            {folders.map((f) => {
-              const active = nav.kind === "folder" && nav.folderId === f.id;
-              return (
-                <li
-                  key={f.id}
-                  className="flex items-center gap-1 rounded-xl hover:bg-[color:var(--hover-row)]"
-                >
-                  <button
-                    type="button"
-                    className={cn(navButtonClass(active), "flex-1 border-0")}
-                    onClick={() => onNav({ kind: "folder", folderId: f.id })}
-                  >
-                    <span aria-hidden>📁</span>
-                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  </button>
-                  <GlassButton
-                    type="button"
-                    className="h-8 w-8 shrink-0 rounded-lg p-0 text-xs text-rose-600"
-                    title="删除分类"
-                    onClick={() => onDeleteFolder(f.id)}
-                  >
-                    ×
-                  </GlassButton>
-                </li>
-              );
-            })}
-          </ul>
-        </GlassPanel>
-
-        <GlassPanel className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-0">
-          <div className="border-b border-[color:var(--glass-border)] px-4 py-3 text-sm font-medium text-[color:var(--text)]">
-            订阅源 ({feeds.length})
-          </div>
-          <ul className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-3">
-            {feeds.length === 0 ? (
-              <li className="px-2 py-6 text-center text-sm text-[color:var(--muted)]">
-                暂无订阅，点击上方 + 添加
-              </li>
-            ) : (
-              feeds.map((f) => {
-                const active = nav.kind === "source" && nav.sourceId === f.id;
-                const n = unreadByFeedId[f.id] ?? 0;
+            <div className="flex gap-2">
+              <AppInput
+                className="min-w-0 flex-1 text-sm"
+                placeholder="新分类名称"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onCreateFolder();
+                }}
+              />
+              <AppButton type="button" className="shrink-0" onClick={onCreateFolder}>
+                添加
+              </AppButton>
+            </div>
+            <ul className="mt-2 flex max-h-36 flex-col gap-0.5 overflow-y-auto">
+              {folders.map((f) => {
+                const active = nav.kind === "folder" && nav.folderId === f.id;
                 return (
-                  <li key={f.id} className="rounded-xl px-1 py-1">
+                  <li
+                    key={f.id}
+                    className="flex items-center gap-1 rounded-lg hover:bg-[color:var(--hover-row)]"
+                  >
                     <button
                       type="button"
-                      className={navButtonClass(active)}
-                      onClick={() => onNav({ kind: "source", sourceId: f.id })}
+                      className={cn(navButtonClass(active), "flex-1")}
+                      onClick={() => onNav({ kind: "folder", folderId: f.id })}
                     >
-                      <span className="min-w-0 flex-1 truncate text-left">
-                        {f.title}
-                      </span>
-                      <span className="shrink-0 rounded-full bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
-                        {n}
-                      </span>
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
                     </button>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 px-2 pb-1">
-                      <label className="sr-only" htmlFor={`folder-${f.id}`}>
-                        分类
-                      </label>
-                      <select
-                        id={`folder-${f.id}`}
-                        className="glass-input min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs text-[color:var(--text)]"
-                        value={f.folderId ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          onFeedFolderChange(f.id, v === "" ? null : v);
-                        }}
-                      >
-                        <option value="">未分类</option>
-                        {folders.map((fo) => (
-                          <option key={fo.id} value={fo.id}>
-                            {fo.name}
-                          </option>
-                        ))}
-                      </select>
-                      <GlassButton
-                        type="button"
-                        className="h-8 shrink-0 rounded-lg px-2 text-xs text-rose-600"
-                        title="删除订阅"
-                        onClick={() => onRemoveFeed(f.id)}
-                      >
-                        删除
-                      </GlassButton>
-                    </div>
+                    <AppButton
+                      type="button"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0 rounded-lg p-0 text-xs text-rose-600"
+                      title="删除分类"
+                      onClick={() => onDeleteFolder(f.id)}
+                    >
+                      ×
+                    </AppButton>
                   </li>
                 );
-              })
-            )}
-          </ul>
-        </GlassPanel>
+              })}
+            </ul>
+          </section>
+
+          <section className="flex min-h-0 flex-1 flex-col px-3 py-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--muted)]">
+              订阅源 ({feeds.length})
+            </p>
+            <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+              {feeds.length === 0 ? (
+                <li className="py-6 text-center text-sm text-[color:var(--muted)]">
+                  暂无订阅，点击上方 + 添加
+                </li>
+              ) : (
+                feeds.map((f) => {
+                  const active = nav.kind === "source" && nav.sourceId === f.id;
+                  const n = unreadByFeedId[f.id] ?? 0;
+                  return (
+                    <li key={f.id} className="rounded-lg py-0.5">
+                      <button
+                        type="button"
+                        className={navButtonClass(active)}
+                        onClick={() => onNav({ kind: "source", sourceId: f.id })}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-left">
+                          {f.title}
+                        </span>
+                        <span className="shrink-0 rounded-md bg-[color:var(--hover-row)] px-2 py-0.5 text-xs tabular-nums text-[color:var(--muted)]">
+                          {n}
+                        </span>
+                      </button>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 px-1 pb-1">
+                        <label className="sr-only" htmlFor={`folder-${f.id}`}>
+                          分类
+                        </label>
+                        <select
+                          id={`folder-${f.id}`}
+                          className="ui-input min-w-0 flex-1 rounded-lg px-2 py-1.5 text-xs text-[color:var(--text)]"
+                          value={f.folderId ?? ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            onFeedFolderChange(f.id, v === "" ? null : v);
+                          }}
+                        >
+                          <option value="">未分类</option>
+                          {folders.map((fo) => (
+                            <option key={fo.id} value={fo.id}>
+                              {fo.name}
+                            </option>
+                          ))}
+                        </select>
+                        <AppButton
+                          type="button"
+                          variant="ghost"
+                          className="h-8 shrink-0 rounded-lg px-2 text-xs text-rose-600"
+                          title="删除订阅"
+                          onClick={() => onRemoveFeed(f.id)}
+                        >
+                          删除
+                        </AppButton>
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </section>
+        </div>
       </aside>
     </>
   );

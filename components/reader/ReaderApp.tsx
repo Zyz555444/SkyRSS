@@ -19,6 +19,7 @@ import { ArticleReaderColumn } from "@/components/reader/ArticleReaderColumn";
 import { ReaderSidebar } from "@/components/reader/ReaderSidebar";
 import { ReaderAuthSlot, ReaderTopBar } from "@/components/reader/ReaderTopBar";
 import type { ReaderNav } from "@/components/reader/types";
+import { cn } from "@/lib/cn";
 import {
   GlassButton,
   GlassInput,
@@ -605,6 +606,7 @@ export function ReaderApp() {
         onRefresh={handleRefresh}
         onMarkAllRead={handleMarkAllRead}
         onToggleTheme={() => setStoredThemeDark(!isDark)}
+        onOpenSubscriptions={() => setSidebarOpen(true)}
         isDark={isDark}
         refreshDisabled={mergeLoading}
         authSlot={
@@ -629,11 +631,10 @@ export function ReaderApp() {
         </div>
       ) : null}
 
-      <div className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:gap-4 md:p-4 lg:flex-row">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-3 md:p-4">
         <ReaderSidebar
-          isLargeScreen={isLg}
-          mobileOpen={sidebarOpen}
-          onMobileClose={() => setSidebarOpen(false)}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
           nav={nav}
           onNav={(n) => {
             setNav(n);
@@ -689,17 +690,14 @@ export function ReaderApp() {
           cloudError={cloudError ?? readerRemoteError}
         />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:min-h-0 lg:min-w-0 lg:flex-[0.42]">
-          {!isLg ? (
-            <GlassButton
-              type="button"
-              className="shrink-0 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              订阅栏
-            </GlassButton>
-          ) : null}
-
+        <div
+          className={cn(
+            "grid min-h-0 flex-1 gap-3 md:gap-4",
+            isLg
+              ? "grid-cols-[minmax(280px,38%)_1fr]"
+              : "grid-cols-1",
+          )}
+        >
           <ArticleListColumn
             title={listColumnTitle(nav, folders, feeds)}
             rows={filteredRows}
@@ -722,9 +720,7 @@ export function ReaderApp() {
             onRefresh={handleRefresh}
             updatedLabel={updatedLabel}
           />
-        </div>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0 lg:min-w-0 lg:flex-1">
           <ArticleReaderColumn
             item={activeItem}
             isLargeScreen={isLg}
