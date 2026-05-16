@@ -81,36 +81,42 @@ export function ReaderSidebar({
       <aside
         id="reader-sidebar"
         className={cn(
-          "flex h-full min-h-0 flex-col gap-4 overflow-hidden",
+          "flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4",
           isLargeScreen
-            ? "relative w-72"
+            ? "relative w-full"
             : cn(
                 "fixed bottom-0 left-0 top-0 z-40 w-[min(22rem,90vw)] max-w-full flex-col overflow-y-auto border-r border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] p-5 shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-out",
                 mobileOpen ? "translate-x-0" : "-translate-x-full",
               ),
         )}
       >
-        {/* 添加订阅按钮区域 */}
-        <GlassPanel className="flex items-center justify-between p-4">
-          <div>
-            <p className="text-lg font-bold text-[color:var(--text)]">
-              订阅管理
-            </p>
-            {cloudLoading ? (
-              <p className="mt-1 text-xs text-[color:var(--muted)]">
-                云端同步中…
-              </p>
-            ) : null}
+        {/* Logo 区域 - 仅移动端显示 */}
+        {!isLargeScreen && (
+          <div className="mb-4 flex items-center gap-2 pb-4 border-b border-[color:var(--glass-border)]">
+            <span className="text-2xl" aria-hidden>☁️</span>
+            <span className="text-xl font-bold gradient-text">SkyRSS</span>
           </div>
-          <GlassButton
-            type="button"
-            className="group h-11 w-11 shrink-0 rounded-full p-0 text-2xl transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-95"
-            title="添加订阅"
-            onClick={onOpenAddFeed}
-          >
+        )}
+
+        {/* 添加订阅按钮区域 */}
+        <button
+          type="button"
+          onClick={onOpenAddFeed}
+          className="group relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--accent)] p-4 text-white shadow-lg shadow-[color:var(--primary-glow)] transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+        >
+          <div className="relative z-10">
+            <p className="text-base font-bold">添加订阅</p>
+            {cloudLoading ? (
+              <p className="mt-0.5 text-xs opacity-90">云端同步中…</p>
+            ) : (
+              <p className="mt-0.5 text-xs opacity-90">输入 RSS 源 URL</p>
+            )}
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-2xl transition-all duration-300 group-hover:rotate-90 group-hover:scale-110">
             +
-          </GlassButton>
-        </GlassPanel>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:animate-shimmer" />
+        </button>
 
         {/* 错误提示 */}
         {cloudError ? (
@@ -126,27 +132,30 @@ export function ReaderSidebar({
         ) : null}
 
         {/* 导航菜单 */}
-        <GlassPanel className="p-4">
-          <nav className="flex flex-col gap-1.5">
+        <div className="rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] p-3 backdrop-blur-xl">
+          <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+            快捷导航
+          </div>
+          <nav className="flex flex-col gap-1">
             {/* 全部文章 */}
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                "group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-all duration-200",
                 allActive
-                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  ? "bg-gradient-to-r from-[color:var(--primary)]/[0.15] to-[color:var(--primary)]/[0.05] text-[color:var(--primary)] shadow-sm"
                   : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
               )}
               onClick={() => onNav({ kind: "all" })}
             >
-              <span className="text-xl" aria-hidden>
+              <span className="text-xl transition-transform duration-200 group-hover:scale-110" aria-hidden>
                 📄
               </span>
-              <span className="min-w-0 flex-1 truncate">全部文章</span>
+              <span className="min-w-0 flex-1 truncate font-medium">全部文章</span>
               <span className={cn(
                 "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums transition-all duration-200",
                 unreadTotal > 0
-                  ? "bg-[color:var(--primary)] text-white"
+                  ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--primary)] text-white shadow-sm"
                   : "bg-[color:var(--secondary)] text-[color:var(--muted)]",
               )}>
                 {unreadTotal}
@@ -157,17 +166,17 @@ export function ReaderSidebar({
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                "group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-all duration-200",
                 rlActive
-                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  ? "bg-gradient-to-r from-[color:var(--primary)]/[0.15] to-[color:var(--primary)]/[0.05] text-[color:var(--primary)] shadow-sm"
                   : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
               )}
               onClick={() => onNav({ kind: "read_later" })}
             >
-              <span className="text-xl" aria-hidden>
+              <span className="text-xl transition-transform duration-200 group-hover:scale-110" aria-hidden>
                 📋
               </span>
-              <span className="min-w-0 flex-1 truncate">稍后阅读</span>
+              <span className="min-w-0 flex-1 truncate font-medium">稍后阅读</span>
               <span className="shrink-0 rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[color:var(--muted)]">
                 {readLaterCount}
               </span>
@@ -177,17 +186,17 @@ export function ReaderSidebar({
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                "group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-all duration-200",
                 favActive
-                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  ? "bg-gradient-to-r from-[color:var(--primary)]/[0.15] to-[color:var(--primary)]/[0.05] text-[color:var(--primary)] shadow-sm"
                   : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
               )}
               onClick={() => onNav({ kind: "favorites" })}
             >
-              <span className="text-xl" aria-hidden>
+              <span className="text-xl transition-transform duration-200 group-hover:scale-110" aria-hidden>
                 ⭐
               </span>
-              <span className="min-w-0 flex-1 truncate">收藏</span>
+              <span className="min-w-0 flex-1 truncate font-medium">收藏</span>
               <span className="shrink-0 rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[color:var(--muted)]">
                 {favoritesCount}
               </span>
@@ -197,60 +206,56 @@ export function ReaderSidebar({
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                "group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-all duration-200",
                 recActive
-                  ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                  ? "bg-gradient-to-r from-[color:var(--primary)]/[0.15] to-[color:var(--primary)]/[0.05] text-[color:var(--primary)] shadow-sm"
                   : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
               )}
               onClick={() => onNav({ kind: "recent" })}
             >
-              <span className="text-xl" aria-hidden>
+              <span className="text-xl transition-transform duration-200 group-hover:scale-110" aria-hidden>
                 🕐
               </span>
-              <span className="min-w-0 flex-1 truncate">最近阅读</span>
+              <span className="min-w-0 flex-1 truncate font-medium">最近阅读</span>
               <span className="shrink-0 rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[color:var(--muted)]">
                 {recentCount}
               </span>
             </button>
           </nav>
-        </GlassPanel>
+        </div>
 
         {/* 分类管理 */}
-        <GlassPanel className="flex flex-col gap-3 p-4">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-              分类
-            </p>
-          </div>
-          
-          {/* 添加分类输入框 */}
-          <div className="flex gap-2">
-            <GlassInput
-              className="min-w-0 flex-1 text-sm"
-              placeholder="输入分类名称"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onCreateFolder();
-              }}
-            />
-            <GlassButton
-              type="button"
-              className="shrink-0 px-4"
-              onClick={onCreateFolder}
-            >
-              添加
-            </GlassButton>
-          </div>
+        {folders.length > 0 && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] p-3 backdrop-blur-xl">
+            <div className="flex items-center justify-between px-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+                分类
+              </span>
+            </div>
+            
+            {/* 添加分类输入框 */}
+            <div className="flex gap-2 px-3">
+              <GlassInput
+                className="min-w-0 flex-1 text-sm"
+                placeholder="新分类名称"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onCreateFolder();
+                }}
+              />
+              <GlassButton
+                type="button"
+                className="shrink-0 px-4"
+                onClick={onCreateFolder}
+              >
+                添加
+              </GlassButton>
+            </div>
 
-          {/* 分类列表 */}
-          <ul className="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
-            {folders.length === 0 ? (
-              <li className="rounded-xl border border-dashed border-[color:var(--card-border)] px-4 py-6 text-center text-sm text-[color:var(--muted)]">
-                暂无分类，点击上方添加
-              </li>
-            ) : (
-              folders.map((f) => {
+            {/* 分类列表 */}
+            <ul className="flex max-h-48 flex-col gap-1.5 overflow-y-auto px-3">
+              {folders.map((f) => {
                 const active = nav.kind === "folder" && nav.folderId === f.id;
                 return (
                   <li
@@ -283,20 +288,20 @@ export function ReaderSidebar({
                     </GlassButton>
                   </li>
                 );
-              })
-            )}
-          </ul>
-        </GlassPanel>
+              })}
+            </ul>
+          </div>
+        )}
 
         {/* 订阅源列表 */}
-        <GlassPanel className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
-          <div className="border-b border-[color:var(--glass-border)] px-4 py-3 text-sm font-semibold text-[color:var(--text)]">
-            <div className="flex items-center justify-between">
-              <span>订阅源</span>
-              <span className="rounded-full bg-[color:var(--secondary)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--muted)]">
-                {feeds.length}
-              </span>
-            </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] backdrop-blur-xl">
+          <div className="flex items-center justify-between border-b border-[color:var(--glass-border)] px-4 py-3">
+            <span className="text-sm font-semibold text-[color:var(--text)]">
+              订阅源
+            </span>
+            <span className="rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--accent)] px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+              {feeds.length}
+            </span>
           </div>
           
           <ul className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
@@ -307,7 +312,7 @@ export function ReaderSidebar({
                   暂无订阅源
                 </p>
                 <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                  点击上方 + 号添加第一个订阅
+                  点击上方按钮添加第一个订阅
                 </p>
               </li>
             ) : (
@@ -321,7 +326,7 @@ export function ReaderSidebar({
                       className={cn(
                         "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all duration-200",
                         active
-                          ? "bg-[color:var(--primary)]/[0.12] text-[color:var(--primary)] shadow-sm"
+                          ? "bg-gradient-to-r from-[color:var(--primary)]/[0.15] to-[color:var(--primary)]/[0.05] text-[color:var(--primary)] shadow-sm"
                           : "text-[color:var(--text)] hover:bg-[color:var(--hover-row)]",
                       )}
                       onClick={() => onNav({ kind: "source", sourceId: f.id })}
@@ -330,7 +335,7 @@ export function ReaderSidebar({
                         {f.title}
                       </span>
                       {n > 0 && (
-                        <span className="shrink-0 rounded-full bg-[color:var(--primary)] px-2 py-0.5 text-xs font-semibold text-white">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--accent)] px-1.5 text-xs font-bold text-white shadow-sm">
                           {n}
                         </span>
                       )}
@@ -367,7 +372,7 @@ export function ReaderSidebar({
               })
             )}
           </ul>
-        </GlassPanel>
+        </div>
       </aside>
     </>
   );

@@ -629,10 +629,10 @@ export function ReaderApp() {
         </div>
       ) : null}
 
-      {/* 现代化布局：顶部导航 + 双栏内容区 */}
-      <div className="relative flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:gap-6 lg:p-6">
-        {/* 左侧边栏：订阅导航 */}
-        <aside className="hidden lg:flex lg:w-72 lg:flex-shrink-0">
+      {/* 现代化布局：主内容区采用浮动面板设计 */}
+      <div className="relative flex min-h-0 flex-1 overflow-hidden p-0 lg:p-0">
+        {/* 左侧边栏：订阅导航 - 浮动面板 */}
+        <aside className="hidden lg:block lg:w-80 lg:flex-shrink-0 lg:border-r lg:border-[color:var(--glass-border)]">
           <ReaderSidebar
             isLargeScreen={isLg}
             mobileOpen={sidebarOpen}
@@ -693,19 +693,21 @@ export function ReaderApp() {
         </aside>
 
         {/* 主内容区：文章列表 + 阅读栏 */}
-        <main className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
           {/* 文章列表栏 */}
-          <div className="flex min-w-0 flex-col lg:w-[420px] lg:flex-shrink-0">
+          <div className="flex min-w-0 flex-col lg:w-[480px] lg:flex-shrink-0 lg:border-r lg:border-[color:var(--glass-border)]">
             {/* 移动端侧边栏触发器 */}
             {!isLg && (
-              <GlassButton
-                type="button"
-                className="mb-3 w-full lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <span className="text-lg">☰</span>
-                <span>订阅菜单</span>
-              </GlassButton>
+              <div className="shrink-0 border-b border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] px-4 py-3 backdrop-blur-xl">
+                <GlassButton
+                  type="button"
+                  className="w-full"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <span className="text-lg">☰</span>
+                  <span>订阅菜单</span>
+                </GlassButton>
+              </div>
             )}
             
             <ArticleListColumn
@@ -732,8 +734,8 @@ export function ReaderApp() {
             />
           </div>
 
-          {/* 阅读栏 - 固定宽度 */}
-          <div className="hidden min-h-0 lg:flex lg:w-[680px] lg:flex-shrink-0">
+          {/* 阅读栏 - 自适应宽度 */}
+          <div className="flex min-w-0 flex-1 overflow-hidden">
             <ArticleReaderColumn
               item={activeItem}
               isLargeScreen={isLg}

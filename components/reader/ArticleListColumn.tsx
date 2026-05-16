@@ -79,11 +79,10 @@ export function ArticleListColumn({
   updatedLabel,
 }: ArticleListColumnProps) {
   return (
-    <GlassPanel
+    <div
       className={cn(
-        "flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] backdrop-blur-2xl",
+        "flex min-h-0 flex-1 flex-col overflow-hidden bg-[color:var(--background)]",
         !isLargeScreen && mobileShowReader && "hidden",
-        "shadow-lg transition-all duration-300",
       )}
     >
       {/* 栏目标题 */}
@@ -99,9 +98,16 @@ export function ArticleListColumn({
               ☰
             </GlassButton>
           ) : null}
-          <h2 className="text-lg font-bold text-[color:var(--text)]">
-            {title}
-          </h2>
+          <div>
+            <h2 className="text-lg font-bold gradient-text">
+              {title}
+            </h2>
+            {updatedLabel && isLargeScreen ? (
+              <p className="text-xs text-[color:var(--muted-foreground)]">
+                {updatedLabel}
+              </p>
+            ) : null}
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -113,11 +119,17 @@ export function ArticleListColumn({
           >
             ✓
           </GlassButton>
-          {loading ? (
-            <span className="animate-pulse text-xs text-[color:var(--muted)]">
-              加载中…
-            </span>
-          ) : null}
+          <GlassButton
+            type="button"
+            className={cn(
+              "h-9 w-9 shrink-0 rounded-full p-0 transition-all duration-200 hover:scale-105 active:scale-95",
+              loading && "animate-spin",
+            )}
+            title="刷新"
+            onClick={onRefresh}
+          >
+            ↻
+          </GlassButton>
         </div>
       </div>
 
@@ -138,7 +150,7 @@ export function ArticleListColumn({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-3">
         {rows.length === 0 && !loading ? (
           <div className="empty-state">
-            <div className="mb-4 text-5xl">📭</div>
+            <div className="mb-4 text-5xl animate-float">📭</div>
             <p className="text-base font-medium text-[color:var(--text)]">
               暂无条目
             </p>
@@ -146,6 +158,17 @@ export function ArticleListColumn({
               这里还没有文章，去添加一些订阅源吧
             </p>
           </div>
+        ) : loading ? (
+          /* 加载骨架屏 */
+          <ul className="flex flex-col gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={i} className="skeleton-card animate-pulse">
+                <div className="mb-2 h-5 w-3/4 rounded bg-[color:var(--secondary)]" />
+                <div className="mb-3 h-4 w-full rounded bg-[color:var(--secondary)]" />
+                <div className="h-4 w-1/2 rounded bg-[color:var(--secondary)]" />
+              </li>
+            ))}
+          </ul>
         ) : (
           <ul className="flex flex-col gap-3">
             {rows.map((row, index) => {
@@ -159,22 +182,17 @@ export function ArticleListColumn({
               return (
                 <li
                   key={key}
-                  className="animate-list-item"
+                  className="animate-fade-in"
                   style={style}
                 >
                   <div
                     className={cn(
                       "article-card group relative cursor-pointer overflow-hidden",
                       active && "ring-2 ring-[color:var(--primary)] ring-offset-2",
-                      unread && "bg-gradient-to-r from-[color:var(--primary)]/[0.04] to-transparent",
+                      unread && "before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-[color:var(--primary)] before:to-[color:var(--accent)]",
                     )}
                     onClick={() => onSelectRow(row)}
                   >
-                    {/* 未读指示器 */}
-                    {unread && (
-                      <div className="absolute left-0 top-0 h-full w-1 bg-[color:var(--primary)]" />
-                    )}
-                    
                     {/* 标题区域 */}
                     <div className="mb-2 flex items-start justify-between gap-2">
                       <h3 className={cn(
@@ -213,7 +231,7 @@ export function ArticleListColumn({
                         className={cn(
                           "h-8 rounded-lg px-3 text-sm transition-all duration-200 hover:scale-105",
                           isFavorite(row)
-                            ? "bg-[color:var(--primary)]/[0.1] text-[color:var(--primary)]"
+                            ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--accent)] text-white shadow-sm"
                             : "",
                         )}
                         title="收藏"
@@ -230,7 +248,7 @@ export function ArticleListColumn({
                         className={cn(
                           "h-8 rounded-lg px-3 text-sm transition-all duration-200 hover:scale-105",
                           isReadLater(row)
-                            ? "bg-[color:var(--accent)]/[0.1] text-[color:var(--accent)]"
+                            ? "bg-[color:var(--primary)]/[0.1] text-[color:var(--primary)]"
                             : "",
                         )}
                         title="稍后阅读"
@@ -249,24 +267,6 @@ export function ArticleListColumn({
           </ul>
         )}
       </div>
-
-      {/* 底部状态栏 - 仅移动端 */}
-      {!isLargeScreen ? (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[color:var(--glass-border)] bg-[color:var(--glass-bg-strong)] px-5 py-3 backdrop-blur-xl">
-          <GlassButton
-            type="button"
-            className="h-9 w-9 shrink-0 rounded-full p-0 transition-all duration-200 hover:scale-105"
-            title="刷新"
-            onClick={onRefresh}
-          >
-            ↻
-          </GlassButton>
-          <span className="min-w-0 flex-1 truncate text-center text-xs text-[color:var(--muted-foreground)]">
-            {updatedLabel ?? ""}
-          </span>
-          <div className="w-9" />
-        </div>
-      ) : null}
-    </GlassPanel>
+    </div>
   );
 }

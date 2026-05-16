@@ -36,7 +36,7 @@ export function ReaderTopBar({
         <span className="text-2xl animate-float" aria-hidden>
           ☁️
         </span>
-        <span className="text-xl font-bold tracking-tight text-[color:var(--text)]">
+        <span className="text-xl font-bold gradient-text">
           SkyRSS
         </span>
       </div>

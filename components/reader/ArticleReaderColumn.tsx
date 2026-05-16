@@ -34,7 +34,7 @@ export function ArticleReaderColumn({
   return (
     <section
       className={cn(
-        "flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] backdrop-blur-2xl shadow-lg transition-all duration-300",
+        "flex min-h-0 flex-1 flex-col overflow-hidden bg-[color:var(--background)]",
         "min-h-[min(70dvh,560px)] lg:min-h-0",
         !isLargeScreen && (!item || !mobileShowReader) && "hidden",
       )}
@@ -56,15 +56,14 @@ export function ArticleReaderColumn({
             ) : null}
             
             {/* 文章来源和日期 */}
-            <div className="mb-3 flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
-              <span className="font-medium text-[color:var(--primary)]">
+            <div className="mb-3 flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--accent)] px-2.5 py-1 font-semibold text-white shadow-sm">
                 {item.feedTitle}
               </span>
               {activeDateLabel ? (
-                <>
-                  <span className="opacity-40">·</span>
-                  <span>{activeDateLabel}</span>
-                </>
+                <span className="text-[color:var(--muted-foreground)]">
+                  {activeDateLabel}
+                </span>
               ) : null}
             </div>
             
@@ -76,10 +75,10 @@ export function ArticleReaderColumn({
             {/* 作者信息 */}
             {item.author ? (
               <div className="mt-3 flex items-center gap-2 text-sm text-[color:var(--muted)]">
-                <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[color:var(--primary)] to-[color:var(--accent)] flex items-center justify-center text-white font-medium">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[color:var(--primary)] to-[color:var(--accent)] text-white font-medium shadow-md">
                   {item.author.charAt(0).toUpperCase()}
                 </span>
-                <span>{item.author}</span>
+                <span className="font-medium">{item.author}</span>
               </div>
             ) : null}
           </div>
@@ -87,7 +86,7 @@ export function ArticleReaderColumn({
           {/* 文章正文 */}
           <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-transparent to-[color:var(--secondary)]/30">
             <div className="article-reading-shell px-6 py-6">
-              <div className="article-body">
+              <div className="article-body animate-fade-in">
                 <ArticleBody
                   html={item.contentHtml}
                   fallbackSnippet={item.contentSnippet}
@@ -126,19 +125,22 @@ export function ArticleReaderColumn({
       ) : (
         /* 空状态 */
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12">
-          <div className="text-6xl">📖</div>
+          <div className="relative">
+            <div className="absolute inset-0 animate-ping rounded-full bg-[color:var(--primary-glow)] opacity-20" />
+            <div className="relative text-6xl animate-float">📖</div>
+          </div>
           <div className="text-center">
-            <p className="text-sm font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              阅读模式
+            <p className="text-sm font-semibold uppercase tracking-wide gradient-text">
+              沉浸式阅读
             </p>
             <p className="mt-3 text-base text-[color:var(--muted)]">
-              在左侧列表中选择一篇文章<br />开始沉浸式阅读体验
+              在左侧列表中选择一篇文章<br />开始优雅的阅读体验
             </p>
           </div>
-          <div className="mt-4 flex gap-3">
-            <div className="h-2 w-2 rounded-full bg-[color:var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="h-2 w-2 rounded-full bg-[color:var(--accent)] animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="h-2 w-2 rounded-full bg-pink-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+          <div className="mt-4 flex gap-2">
+            <div className="h-2 w-2 rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--accent)] animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="h-2 w-2 rounded-full bg-gradient-to-r from-[color:var(--accent)] to-pink-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="h-2 w-2 rounded-full bg-gradient-to-r from-pink-400 to-[color:var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }} />
           </div>
         </div>
       )}
