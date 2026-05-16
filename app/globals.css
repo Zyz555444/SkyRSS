@@ -7,7 +7,7 @@
   --muted: #737373;
   --muted-foreground: #a3a3a3;
   
-  // 现代化配色系统
+  /* 现代化配色系统 */
   --primary: #0ea5e9;
   --primary-foreground: #ffffff;
   --primary-glow: rgba(14, 165, 233, 0.4);
@@ -21,34 +21,34 @@
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   
-  // 卡片和表面
+  /* 卡片和表面 */
   --card: #ffffff;
   --card-foreground: #0a0a0a;
   --card-border: #e5e5e5;
   --card-hover: #f9fafb;
   
-  // 玻璃态效果
+  /* 玻璃态效果 */
   --glass-bg: rgba(255, 255, 255, 0.65);
   --glass-bg-strong: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   --glass-active: rgba(14, 165, 233, 0.1);
   
-  // 光晕效果
+  /* 光晕效果 */
   --glow-1: rgba(14, 165, 233, 0.15);
   --glow-2: rgba(139, 92, 246, 0.12);
   --glow-3: rgba(236, 72, 153, 0.08);
   
-  // 交互状态
+  /* 交互状态 */
   --hover-row: rgba(244, 244, 245, 0.8);
   --focus-ring: rgba(14, 165, 233, 0.4);
   --ring-offset: #ffffff;
   
-  // 顶部栏和抽屉
+  /* 顶部栏和抽屉 */
   --topbar-bg: rgba(255, 255, 255, 0.7);
   --drawer-backdrop: rgba(0, 0, 0, 0.5);
   
-  // 间距和圆角
+  /* 间距和圆角 */
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -63,7 +63,7 @@
   --muted: #a1a1aa;
   --muted-foreground: #71717a;
   
-  // 深色模式配色
+  /* 深色模式配色 */
   --primary: #38bdf8;
   --primary-foreground: #0c4a6e;
   --primary-glow: rgba(56, 189, 248, 0.5);
@@ -77,25 +77,25 @@
   --destructive: #f87171;
   --destructive-foreground: #450a0a;
   
-  // 深色模式卡片
+  /* 深色模式卡片 */
   --card: #18181b;
   --card-foreground: #fafafa;
   --card-border: #27272a;
   --card-hover: #1f1f22;
   
-  // 深色模式玻璃态
+  /* 深色模式玻璃态 */
   --glass-bg: rgba(24, 24, 27, 0.6);
   --glass-bg-strong: rgba(24, 24, 27, 0.8);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   --glass-active: rgba(56, 189, 248, 0.15);
   
-  // 深色模式光晕
+  /* 深色模式光晕 */
   --glow-1: rgba(56, 189, 248, 0.25);
   --glow-2: rgba(167, 139, 250, 0.18);
   --glow-3: rgba(236, 72, 153, 0.12);
   
-  // 深色模式交互状态
+  /* 深色模式交互状态 */
   --hover-row: rgba(255, 255, 255, 0.05);
   --focus-ring: rgba(56, 189, 248, 0.5);
   --ring-offset: #09090b;
