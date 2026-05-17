@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { GlassButton, GlassPanel } from "@/components/ui/glass";
-import { Skeleton, ArticleListSkeleton, LoadingSpinner } from "@/components/ui/skeleton";
+import { ArticleListSkeleton, LoadingSpinner } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { formatRelativeTimeZh } from "@/lib/format-relative-time";
+import { useVirtualScroll } from "@/hooks/usePerformance";
 import type { StoredReaderItem } from "@/lib/reader-library-storage";
 import type { RssItemView } from "@/types/rss";
 
@@ -193,12 +194,50 @@ export function ArticleListColumn({
 }: ArticleListColumnProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [showTop, setShowTop] = useState(false);
+  const ITEM_HEIGHT = 88;
+
+  const { visibleItems, totalHeight, offsetTop } = useVirtualScroll<ListRow>(
+    rows,
+    ITEM_HEIGHT,
+    listRef as React.RefObject<HTMLElement>,
+    3,
+  );
 
   const handleScroll = useCallback(() => {
     if (listRef.current) {
       setShowTop(listRef.current.scrollTop > 300);
     }
   }, []);
+
+  const scrollToItem = useCallback((key: string) => {
+    if (!listRef.current) return;
+    const container = listRef.current;
+    const scrollTop = container.scrollTop;
+    const viewportHeight = container.clientHeight;
+    
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowKey = listRowCompositeKey(row);
+      if (rowKey === key) {
+        const itemTop = i * ITEM_HEIGHT;
+        const itemBottom = itemTop + ITEM_HEIGHT;
+        
+        if (itemTop < scrollTop || itemBottom > scrollTop + viewportHeight) {
+          container.scrollTo({
+            top: itemTop - viewportHeight / 2,
+            behavior: "smooth",
+          });
+        }
+        break;
+      }
+    }
+  }, [rows]);
+
+  useEffect(() => {
+    if (activeKey) {
+      scrollToItem(activeKey);
+    }
+  }, [activeKey, scrollToItem]);
 
   return (
     <GlassPanel
@@ -254,31 +293,46 @@ export function ArticleListColumn({
           </p>
         ) : loading ? (
           <ArticleListSkeleton count={8} />
+        ) : visibleItems.length === 0 ? (
+          <p className="animate-fade-in px-3 py-10 text-center text-sm text-[color:var(--muted)]">
+            暂无条目
+          </p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {rows.map((row, index) => {
-              const key = listRowCompositeKey(row);
-              const active = activeKey === key;
-              const unread = isUnread(row);
-              const favorite = isFavorite(row);
-              const readLater = isReadLater(row);
+          <div style={{ height: totalHeight, position: "relative" }}>
+            <ul
+              className="flex flex-col gap-2"
+              style={{
+                position: "absolute",
+                top: offsetTop,
+                left: 0,
+                right: 0,
+              }}
+            >
+              {visibleItems.map((row) => {
+                const key = listRowCompositeKey(row);
+                const active = activeKey === key;
+                const unread = isUnread(row);
+                const favorite = isFavorite(row);
+                const readLater = isReadLater(row);
+                const index = rows.indexOf(row);
 
-              return (
-                <ArticleListItem
-                  key={key}
-                  row={row}
-                  active={active}
-                  unread={unread}
-                  favorite={favorite}
-                  readLater={readLater}
-                  index={index}
-                  onSelect={() => onSelectRow(row)}
-                  onToggleFavorite={() => onToggleFavorite(row)}
-                  onToggleReadLater={() => onToggleReadLater(row)}
-                />
-              );
-            })}
-          </ul>
+                return (
+                  <ArticleListItem
+                    key={key}
+                    row={row}
+                    active={active}
+                    unread={unread}
+                    favorite={favorite}
+                    readLater={readLater}
+                    index={index}
+                    onSelect={() => onSelectRow(row)}
+                    onToggleFavorite={() => onToggleFavorite(row)}
+                    onToggleReadLater={() => onToggleReadLater(row)}
+                  />
+                );
+              })}
+            </ul>
+          </div>
         )}
       </div>
 

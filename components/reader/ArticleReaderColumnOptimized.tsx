@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import { GlassButton } from "@/components/ui/glass";
 import { ArticleBody } from "@/components/reader/ArticleBody";
@@ -19,20 +19,23 @@ export function ArticleReaderColumnOptimized({
   mobileShowReader,
   onBack,
 }: ArticleReaderColumnOptimizedProps) {
-  const [prevItem, setPrevItem] = useState<RssItemView | null>(null);
+  const prevItemRef = useRef<RssItemView | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const activeDateLabel = item ? formatArticleDate(item) : null;
 
-  useEffect(() => {
-    if (item !== prevItem) {
+  const handleItemChange = useCallback(() => {
+    if (item !== prevItemRef.current) {
       setIsTransitioning(true);
-      const timer = setTimeout(() => {
-        setPrevItem(item);
+      prevItemRef.current = item;
+      setTimeout(() => {
         setIsTransitioning(false);
       }, 300);
-      return () => clearTimeout(timer);
     }
-  }, [item, prevItem]);
+  }, [item]);
+
+  useEffect(() => {
+    handleItemChange();
+  }, [handleItemChange]);
 
   function formatArticleDate(item: RssItemView): string | null {
     const raw = item.isoDate || item.pubDate;
