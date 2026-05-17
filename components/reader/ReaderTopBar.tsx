@@ -1,6 +1,7 @@
 "use client";
 
 import { SignInButton, UserButton } from "@clerk/nextjs";
+import { SkyRssIcon, SkyRssLogo } from "@/components/brand/SkyRssBrand";
 import { AppButton, AppInput } from "@/components/ui/glass";
 import { cn } from "@/lib/cn";
 
@@ -34,10 +35,10 @@ export function ReaderTopBar({
         "bg-[color:var(--topbar-bg)]",
       )}
     >
-      <div className="flex min-w-0 shrink-0 items-center gap-2">
-        <span className="text-lg font-bold tracking-tight text-[color:var(--text)]">
-          SkyRSS
-        </span>
+      <div className="flex min-w-0 shrink-0 items-center gap-2 text-[color:var(--text)]">
+        <SkyRssLogo className="hidden h-8 w-auto sm:block" aria-hidden />
+        <SkyRssIcon className="h-8 w-8 sm:hidden" aria-hidden />
+        <span className="sr-only">SkyRSS</span>
         <AppButton
           type="button"
           className="hidden h-9 shrink-0 px-3 text-sm sm:inline-flex"
