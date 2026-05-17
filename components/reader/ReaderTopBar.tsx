@@ -2,7 +2,7 @@
 
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { CheckCircle2, Moon, RefreshCw, Sun } from "lucide-react";
-import { SkyRssIcon, SkyRssLogo } from "@/components/brand/SkyRssBrand";
+import { SkyRssIcon } from "@/components/brand/SkyRssBrand";
 import { AppButton, SearchInput } from "@/components/ui/glass";
 import { cn } from "@/lib/cn";
 
@@ -34,8 +34,7 @@ export function ReaderTopBar({
   return (
     <header className="hidden shrink-0 items-center gap-4 border-b border-[color:var(--column-divider)] px-5 py-3 lg:flex">
       <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-        <SkyRssIcon className="h-9 w-9" aria-hidden />
-        <SkyRssLogo className="hidden h-8 w-auto xl:block" aria-hidden />
+        <SkyRssIcon className="h-9 w-9 shrink-0" aria-hidden />
         <span className="text-lg font-bold tracking-tight">
           <span className="text-[color:var(--text)]">Sky</span>
           <span className="text-[color:var(--accent)]">RSS</span>
