@@ -2,7 +2,7 @@
 
 import { Rss } from "lucide-react";
 import { useState } from "react";
-import { feedFaviconUrl } from "@/components/reader/sidebar/feed-favicon";
+import { getFaviconSources } from "@/components/reader/sidebar/feed-favicon";
 import { cn } from "@/lib/cn";
 
 type FeedSourceRowProps = {
@@ -20,8 +20,11 @@ export function FeedSourceRow({
   active,
   onClick,
 }: FeedSourceRowProps) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const favicon = feedFaviconUrl(url);
+  const faviconSources = getFaviconSources(url);
+  const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
+
+  const allSourcesFailed = currentSourceIndex >= faviconSources.length;
+  const currentFavicon = allSourcesFailed ? "" : faviconSources[currentSourceIndex];
 
   return (
     <button
@@ -35,15 +38,24 @@ export function FeedSourceRow({
       )}
     >
       <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[color:var(--hover-row)]">
-        {!imgFailed && favicon ? (
-          // eslint-disable-next-line @next/next/no-img-element
+        {currentFavicon ? (
           <img
-            src={favicon}
+            src={currentFavicon}
             alt=""
             width={20}
             height={20}
             className="h-5 w-5 object-contain"
-            onError={() => setImgFailed(true)}
+            onError={() => {
+              const nextIndex = currentSourceIndex + 1;
+              if (nextIndex < faviconSources.length) {
+                setCurrentSourceIndex(nextIndex);
+              }
+            }}
+            onLoad={() => {
+              if (currentSourceIndex > 0) {
+                setCurrentSourceIndex(0);
+              }
+            }}
           />
         ) : (
           <Rss className="h-3.5 w-3.5 text-[color:var(--muted)]" aria-hidden />

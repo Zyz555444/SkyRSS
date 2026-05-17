@@ -363,32 +363,43 @@ export function ReaderApp() {
 
   const unreadWhenOnAll = useMemo(() => {
     if (nav.kind !== "all") return null;
-    if (mergedItems.length === 0) return 0;
+    if (mergedItems.length === 0) return storedAllUnread;
     let n = 0;
     for (const it of mergedItems) {
       const row = getReaderRow(it.subscriptionId, it.itemKey);
       if (!row?.readAt) n++;
     }
     return n;
-  }, [nav.kind, mergedItems, getReaderRow]);
+  }, [nav.kind, mergedItems, getReaderRow, storedAllUnread]);
 
   const unreadTotal =
     unreadWhenOnAll !== null ? unreadWhenOnAll : storedAllUnread;
 
   const unreadByFeedId = useMemo(() => {
     const map: Record<string, number> = {};
-    if (mergedItems.length === 0) return map;
+    if (mergedItems.length === 0) {
+      for (const feed of feeds) {
+        map[feed.id] = 0;
+      }
+      return map;
+    }
     for (const it of mergedItems) {
       const row = getReaderRow(it.subscriptionId, it.itemKey);
       if (!row?.readAt) {
         map[it.subscriptionId] = (map[it.subscriptionId] ?? 0) + 1;
+      } else {
+        map[it.subscriptionId] = map[it.subscriptionId] ?? 0;
       }
     }
     return map;
-  }, [mergedItems, getReaderRow]);
+  }, [mergedItems, feeds, getReaderRow]);
 
   const unreadByFolderId = useMemo(() => {
     const map: Record<string, number> = {};
+    for (const feed of feeds) {
+      if (!feed.folderId) continue;
+      map[feed.folderId] = 0;
+    }
     if (mergedItems.length === 0) return map;
     for (const it of mergedItems) {
       const feed = feeds.find((f) => f.id === it.subscriptionId);
@@ -396,6 +407,8 @@ export function ReaderApp() {
       const row = getReaderRow(it.subscriptionId, it.itemKey);
       if (!row?.readAt) {
         map[feed.folderId] = (map[feed.folderId] ?? 0) + 1;
+      } else {
+        map[feed.folderId] = map[feed.folderId] ?? 0;
       }
     }
     return map;
