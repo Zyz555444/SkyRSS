@@ -19,13 +19,13 @@ export const metadata: Metadata = {
   description: "在浏览器里管理订阅、阅读条目的 SkyRSS 阅读器。",
   applicationName: "SkyRSS",
   icons: {
-    icon: [{ url: "/brand/skyrss-icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/brand/skyrss-icon.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/brand/skyrss-icon-1x1.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/brand/skyrss-icon-1x1.svg", type: "image/svg+xml" }],
   },
   openGraph: {
     title: "SkyRSS",
     description: "在浏览器里管理订阅、阅读条目的 SkyRSS 阅读器。",
-    images: [{ url: "/brand/skyrss-logo.svg", width: 200, height: 100 }],
+    images: [{ url: "/brand/skyrss-logo-2x1.svg", width: 1024, height: 512 }],
   },
 };
 
