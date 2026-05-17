@@ -311,7 +311,7 @@ export function ReaderApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- subsKey 已编码订阅集合，避免阅读状态变化触发重复合并
   }, [nav.kind, subsKey]);
 
-  const smartRows: ListRow[] = useMemo(() => {
+  const sortedRows = useMemo(() => {
     if (nav.kind === "read_later") {
       return readerItems
         .filter((r) => r.readLater)
@@ -325,30 +325,28 @@ export function ReaderApp() {
     if (nav.kind === "recent") {
       return [...readerItems]
         .filter((r) => r.lastOpenedAt)
-        .sort(
-          (a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0),
-        )
+        .sort((a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0))
         .slice(0, 200)
         .map((row) => ({ kind: "snapshot" as const, row }));
     }
     return [];
   }, [nav.kind, readerItems]);
 
-  const rssRows: ListRow[] = useMemo(
+  const rssRows = useMemo(
     () => mergedItems.map((item) => ({ kind: "rss" as const, item })),
     [mergedItems],
   );
 
-  const baseRows: ListRow[] =
+  const baseRows =
     nav.kind === "read_later" ||
     nav.kind === "favorites" ||
     nav.kind === "recent"
-      ? smartRows
+      ? sortedRows
       : rssRows;
 
   const filteredRows = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
-    if (!q) return baseRows;
+    if (!q || baseRows.length === 0) return baseRows;
     return baseRows.filter((row) => {
       const title =
         row.kind === "rss" ? row.item.title : row.row.title;
@@ -379,6 +377,7 @@ export function ReaderApp() {
 
   const unreadByFeedId = useMemo(() => {
     const map: Record<string, number> = {};
+    if (mergedItems.length === 0) return map;
     for (const it of mergedItems) {
       const row = getReaderRow(it.subscriptionId, it.itemKey);
       if (!row?.readAt) {
@@ -390,6 +389,7 @@ export function ReaderApp() {
 
   const unreadByFolderId = useMemo(() => {
     const map: Record<string, number> = {};
+    if (mergedItems.length === 0) return map;
     for (const it of mergedItems) {
       const feed = feeds.find((f) => f.id === it.subscriptionId);
       if (!feed?.folderId) continue;

@@ -24,6 +24,7 @@ import { useVirtualScroll } from "@/hooks/usePerformance";
 import type { StoredFeed, StoredFolder, StoredReaderItem } from "@/lib/reader-library-storage";
 import type { ReaderNav } from "@/components/reader/types";
 import type { RssItemView } from "@/types/rss";
+import { memo } from "react";
 
 export type ListRow =
   | { kind: "rss"; item: RssItemView }
@@ -79,8 +80,7 @@ type ArticleListItemProps = {
   onToggleFavorite: () => void;
 };
 
-const ArticleListItem = Object.assign(
-  ({
+const ArticleListItem = memo(({
     row,
     active,
     unread,
@@ -96,9 +96,9 @@ const ArticleListItem = Object.assign(
       time != null ? `${sourceOf(row)} · ${time}` : sourceOf(row);
 
     useEffect(() => {
-      if (itemRef.current && active) {
-        itemRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      }
+      if (!active || !itemRef.current) return;
+      const scrollOpts = { block: "nearest" as const, behavior: "smooth" as const };
+      itemRef.current.scrollIntoView(scrollOpts);
     }, [active]);
 
     return (
@@ -182,8 +182,9 @@ const ArticleListItem = Object.assign(
       </li>
     );
   },
-  { displayName: "ArticleListItem" },
 );
+
+ArticleListItem.displayName = "ArticleListItem";
 
 type ArticleListColumnProps = {
   title: string;
@@ -235,18 +236,23 @@ export function ArticleListColumn({
   const listRef = useRef<HTMLDivElement>(null);
   const [showTop, setShowTop] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<ListSortMode>("time");
-
-  useEffect(() => {
-    setSortMode(getListSortMode());
-  }, []);
+  const [sortMode, setSortMode] = useState<ListSortMode>(() => getListSortMode());
 
   const sortedRows = useMemo(() => {
     const copy = [...rows];
+    const isUnreadCache = new WeakMap<ListRow, boolean>();
     if (sortMode === "unread") {
       copy.sort((a, b) => {
-        const ua = isUnread(a) ? 1 : 0;
-        const ub = isUnread(b) ? 1 : 0;
+        let ua = isUnreadCache.get(a) ? 1 : 0;
+        let ub = isUnreadCache.get(b) ? 1 : 0;
+        if (!isUnreadCache.has(a)) {
+          ua = isUnread(a) ? 1 : 0;
+          isUnreadCache.set(a, ua === 1);
+        }
+        if (!isUnreadCache.has(b)) {
+          ub = isUnread(b) ? 1 : 0;
+          isUnreadCache.set(b, ub === 1);
+        }
         if (ub !== ua) return ub - ua;
         return rowTimeMs(b) - rowTimeMs(a);
       });

@@ -68,8 +68,8 @@ class RequestCache {
 }
 
 export const rssCache = new RequestCache({
-  ttl: 3 * 60 * 1000,
-  maxEntries: 50,
+  ttl: 5 * 60 * 1000,
+  maxEntries: 100,
 });
 
 export async function cachedFetch<T>(

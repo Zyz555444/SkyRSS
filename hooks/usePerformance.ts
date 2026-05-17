@@ -1,19 +1,24 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
+  const valueRef = useRef(value);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedValue(value);
+      setDebouncedValue(valueRef.current);
     }, delay);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [value, delay]);
+  }, [delay]);
 
   return debouncedValue;
 }
@@ -21,14 +26,19 @@ export function useDebounce<T>(value: T, delay: number): T {
 export function useThrottle<T>(value: T, interval: number): T {
   const [throttledValue, setThrottledValue] = useState(value);
   const lastUpdate = useRef(0);
+  const valueRef = useRef(value);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     const now = Date.now();
     if (now - lastUpdate.current >= interval) {
-      setThrottledValue(value);
+      setThrottledValue(valueRef.current);
       lastUpdate.current = now;
     }
-  }, [value, interval]);
+  }, [interval]);
 
   return throttledValue;
 }
@@ -43,38 +53,88 @@ export function useVirtualScroll<T>(
   const [totalHeight, setTotalHeight] = useState(0);
   const [offsetTop, setOffsetTop] = useState(0);
   const itemsRef = useRef(items);
+  const containerHeightRef = useRef(0);
+  const scrollTopRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const lastIndexRef = useRef(-1);
 
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
 
+  const updateVisibleItems = useCallback(() => {
+    if (rafRef.current) return;
+
+    rafRef.current = requestAnimationFrame(() => {
+      const scrollTop = scrollTopRef.current;
+      const viewportHeight = containerHeightRef.current;
+      const itemsLen = itemsRef.current.length;
+
+      const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+      const endIndex = Math.min(
+        itemsLen,
+        Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan,
+      );
+
+      const startIndexChanged = startIndex !== lastIndexRef.current;
+      if (startIndexChanged) {
+        const visible = itemsRef.current.slice(startIndex, endIndex);
+        setVisibleItems(visible);
+        setTotalHeight(itemsLen * itemHeight);
+        setOffsetTop(startIndex * itemHeight);
+        lastIndexRef.current = startIndex;
+      }
+
+      rafRef.current = null;
+    });
+  }, [itemHeight, overscan]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const updateVisibleItems = () => {
-      const scrollTop = container.scrollTop;
-      const viewportHeight = container.clientHeight;
+    containerHeightRef.current = container.clientHeight;
+    scrollTopRef.current = container.scrollTop;
 
-      const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
-      const endIndex = Math.min(
-        itemsRef.current.length,
-        Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan,
-      );
-
-      const visible = itemsRef.current.slice(startIndex, endIndex);
-      setVisibleItems(visible);
-      setTotalHeight(itemsRef.current.length * itemHeight);
-      setOffsetTop(startIndex * itemHeight);
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      scrollTopRef.current = target.scrollTop;
+      containerHeightRef.current = target.clientHeight;
+      updateVisibleItems();
     };
 
     updateVisibleItems();
 
-    container.addEventListener("scroll", updateVisibleItems, { passive: true });
+    container.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
-      container.removeEventListener("scroll", updateVisibleItems);
+      container.removeEventListener("scroll", handleScroll);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
     };
-  }, [itemHeight, overscan, containerRef, items]);
+  }, [containerRef, updateVisibleItems]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    containerHeightRef.current = container.clientHeight;
+    const scrollTop = container.scrollTop;
+    const viewportHeight = container.clientHeight;
+    const itemsLen = items.length;
+
+    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+    const endIndex = Math.min(
+      itemsLen,
+      Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan,
+    );
+
+    const visible = items.slice(startIndex, endIndex);
+    setVisibleItems(visible);
+    setTotalHeight(itemsLen * itemHeight);
+    setOffsetTop(startIndex * itemHeight);
+    lastIndexRef.current = startIndex;
+  }, [items, itemHeight, overscan, containerRef]);
 
   return { visibleItems, totalHeight, offsetTop };
 }

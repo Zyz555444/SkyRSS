@@ -40,7 +40,7 @@ function applyKatex(root: HTMLElement) {
 
 function lazyLoadImages(root: HTMLElement) {
   const images = Array.from(root.querySelectorAll("img"));
-  if (images.length === 0) return;
+  if (images.length === 0) return undefined;
 
   const imageObserver = new IntersectionObserver(
     (entries) => {
@@ -76,6 +76,7 @@ function lazyLoadImages(root: HTMLElement) {
 
 function processLazyImages(root: HTMLElement) {
   const images = Array.from(root.querySelectorAll("img"));
+  if (images.length === 0) return;
   images.forEach((img) => {
     if (!img.loading) {
       img.loading = "lazy";
@@ -98,19 +99,23 @@ type ArticleBodyProps = {
  */
 export function ArticleBody({ html, fallbackSnippet }: ArticleBodyProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const prevHtmlRef = useRef<string | undefined>(undefined);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root || html === prevHtmlRef.current) return;
+    
     applyKatex(root);
     processLazyImages(root);
-  }, [html, fallbackSnippet]);
+    prevHtmlRef.current = html;
+  }, [html]);
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root) return undefined;
+    if (html !== prevHtmlRef.current) return undefined;
     return lazyLoadImages(root);
-  }, [html, fallbackSnippet]);
+  }, [html]);
 
   if (html) {
     return (

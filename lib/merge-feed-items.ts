@@ -16,8 +16,8 @@ export type MergedFetchResult = {
   errors: { subscriptionId: string; title: string; message: string }[];
 };
 
-const DEFAULT_CONCURRENCY = 4;
-const CACHE_TTL = 5 * 60 * 1000;
+const DEFAULT_CONCURRENCY = 6;
+const CACHE_TTL = 10 * 60 * 1000;
 
 type CacheEntry = {
   timestamp: number;
