@@ -1,43 +1,36 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 
 export function useDebounce<T>(value: T, delay: number): T {
-  const debouncedValue = useRef(value);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      debouncedValue.current = value;
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
     }, delay);
 
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      clearTimeout(timer);
     };
   }, [value, delay]);
 
-  return debouncedValue.current;
+  return debouncedValue;
 }
 
 export function useThrottle<T>(value: T, interval: number): T {
-  const throttledValue = useRef(value);
+  const [throttledValue, setThrottledValue] = useState(value);
   const lastUpdate = useRef(0);
 
-  const updateValue = useCallback(() => {
+  useEffect(() => {
     const now = Date.now();
     if (now - lastUpdate.current >= interval) {
-      throttledValue.current = value;
+      setThrottledValue(value);
       lastUpdate.current = now;
     }
   }, [value, interval]);
 
-  useEffect(() => {
-    updateValue();
-  }, [updateValue]);
-
-  return throttledValue.current;
+  return throttledValue;
 }
 
 export function useVirtualScroll<T>(
@@ -49,6 +42,11 @@ export function useVirtualScroll<T>(
   const [visibleItems, setVisibleItems] = useState<T[]>([]);
   const [totalHeight, setTotalHeight] = useState(0);
   const [offsetTop, setOffsetTop] = useState(0);
+  const itemsRef = useRef(items);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -60,13 +58,13 @@ export function useVirtualScroll<T>(
 
       const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
       const endIndex = Math.min(
-        items.length,
+        itemsRef.current.length,
         Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan,
       );
 
-      const visible = items.slice(startIndex, endIndex);
+      const visible = itemsRef.current.slice(startIndex, endIndex);
       setVisibleItems(visible);
-      setTotalHeight(items.length * itemHeight);
+      setTotalHeight(itemsRef.current.length * itemHeight);
       setOffsetTop(startIndex * itemHeight);
     };
 
@@ -76,7 +74,7 @@ export function useVirtualScroll<T>(
     return () => {
       container.removeEventListener("scroll", updateVisibleItems);
     };
-  }, [items, itemHeight, overscan]);
+  }, [itemHeight, overscan, containerRef]);
 
   return { visibleItems, totalHeight, offsetTop };
 }
