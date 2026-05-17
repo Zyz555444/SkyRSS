@@ -110,79 +110,63 @@ export async function PATCH(request: Request) {
   const now = new Date();
 
   try {
-    await db.transaction(async (tx) => {
-      for (const it of parsed.data.items) {
-        const [sub] = await tx
-          .select({ id: subscriptions.id })
-          .from(subscriptions)
-          .where(
-            and(
-              eq(subscriptions.id, it.subscriptionId),
-              eq(subscriptions.userId, result.user.id),
-            ),
-          )
-          .limit(1);
+    for (const it of parsed.data.items) {
+      const [sub] = await db
+        .select({ id: subscriptions.id })
+        .from(subscriptions)
+        .where(
+          and(
+            eq(subscriptions.id, it.subscriptionId),
+            eq(subscriptions.userId, result.user.id),
+          ),
+        )
+        .limit(1);
 
-        if (!sub) {
-          throw new Error(`无效订阅: ${it.subscriptionId}`);
-        }
+      if (!sub) {
+        throw new Error(`无效订阅：${it.subscriptionId}`);
+      }
 
-        const [existing] = await tx
-          .select()
-          .from(readerItems)
-          .where(
-            and(
-              eq(readerItems.userId, result.user.id),
-              eq(readerItems.subscriptionId, it.subscriptionId),
-              eq(readerItems.itemKey, it.itemKey),
-            ),
-          )
-          .limit(1);
+      const [existing] = await db
+        .select()
+        .from(readerItems)
+        .where(
+          and(
+            eq(readerItems.userId, result.user.id),
+            eq(readerItems.subscriptionId, it.subscriptionId),
+            eq(readerItems.itemKey, it.itemKey),
+          ),
+        )
+        .limit(1);
 
-        const readAt =
-          it.read === true
-            ? now
-            : it.read === false
-              ? null
-              : (existing?.readAt ?? null);
-
-        const favorite =
-          it.favorite !== undefined
-            ? it.favorite
-            : (existing?.favorite ?? false);
-        const readLater =
-          it.readLater !== undefined
-            ? it.readLater
-            : (existing?.readLater ?? false);
-
-        const lastOpenedAt = it.markOpened
+      const readAt =
+        it.read === true
           ? now
-          : (existing?.lastOpenedAt ?? null);
+          : it.read === false
+            ? null
+            : (existing?.readAt ?? null);
 
-        const title = it.title;
-        const link = it.link ?? null;
-        const snippet = it.snippet ?? null;
-        const feedTitle = it.feedTitle;
+      const favorite =
+        it.favorite !== undefined
+          ? it.favorite
+          : (existing?.favorite ?? false);
+      const readLater =
+        it.readLater !== undefined
+          ? it.readLater
+          : (existing?.readLater ?? false);
 
-        if (existing) {
-          await tx
-            .update(readerItems)
-            .set({
-              title,
-              link,
-              snippet,
-              feedTitle,
-              readAt,
-              favorite,
-              readLater,
-              lastOpenedAt,
-            })
-            .where(eq(readerItems.id, existing.id));
-        } else {
-          await tx.insert(readerItems).values({
-            userId: result.user.id,
-            subscriptionId: it.subscriptionId,
-            itemKey: it.itemKey,
+      const lastOpenedAt = it.markOpened
+        ? now
+        : (existing?.lastOpenedAt ?? null);
+
+      const title = it.title;
+      const link = it.link ?? null;
+      const snippet = it.snippet ?? null;
+      const feedTitle = it.feedTitle;
+
+      if (existing) {
+        await db
+          .update(readerItems)
+          .set({
             title,
             link,
             snippet,
@@ -191,10 +175,24 @@ export async function PATCH(request: Request) {
             favorite,
             readLater,
             lastOpenedAt,
-          });
-        }
+          })
+          .where(eq(readerItems.id, existing.id));
+      } else {
+        await db.insert(readerItems).values({
+          userId: result.user.id,
+          subscriptionId: it.subscriptionId,
+          itemKey: it.itemKey,
+          title,
+          link,
+          snippet,
+          feedTitle,
+          readAt,
+          favorite,
+          readLater,
+          lastOpenedAt,
+        });
       }
-    });
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "更新失败";
     return NextResponse.json({ error: msg }, { status: 400 });
