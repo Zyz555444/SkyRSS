@@ -403,5 +403,10 @@ npm run db:studio
 5. 创建 Pull Request
 
 ---
+## 希望你喜欢！
+
+- Star 趋势  [![GitHub stars](https://img.shields.io/github/stars/Zyz555444/SkyRSS?logo=github&style=social)](https://github.com/Zyz555444/SkyRSS/stargazers)
+
+[![Stargazers over time](https://starchart.cc/Zyz555444/SkyRSS.svg)](https://github.com/Zyz555444/SkyRSS/stargazers)
 
 **📡 Happy Reading with SkyRSS!**
