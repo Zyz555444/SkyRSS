@@ -1,32 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f5f7;
+  --background: #e8eef8;
   --foreground: #0f172a;
   --text: #0f172a;
   --muted: rgba(15, 23, 42, 0.52);
   --muted-foreground: rgba(15, 23, 42, 0.52);
   --surface: #ffffff;
   --surface-elevated: #ffffff;
-  --border-subtle: rgba(15, 23, 42, 0.1);
-  --ring: rgba(14, 165, 233, 0.45);
-  --accent: #0ea5e9;
-  --accent-muted: rgba(14, 165, 233, 0.12);
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --ring: rgba(74, 144, 226, 0.45);
+  --accent: #4a90e2;
+  --accent-muted: rgba(74, 144, 226, 0.14);
   --hover-row: rgba(15, 23, 42, 0.04);
-  --focus-ring: rgba(15, 23, 42, 0.28);
-  --topbar-bg: #ffffff;
-  --drawer-backdrop: rgba(15, 23, 42, 0.4);
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --focus-ring: rgba(74, 144, 226, 0.35);
+  --topbar-bg: transparent;
+  --drawer-backdrop: rgba(15, 23, 42, 0.35);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
+  --shell-bg: rgba(255, 255, 255, 0.72);
+  --shell-border: rgba(255, 255, 255, 0.65);
+  --shell-blur: 20px;
+  --radius-shell: 28px;
+  --radius-panel: 16px;
+  --radius-pill: 9999px;
+  --column-divider: rgba(15, 23, 42, 0.06);
   /* legacy aliases */
   --glass-bg: var(--surface);
   --glass-bg-strong: var(--surface-elevated);
   --glass-border: var(--border-subtle);
   --glass-highlight: rgba(255, 255, 255, 0.95);
   --glass-active: var(--accent-muted);
-  --glow-1: rgba(99, 102, 241, 0.08);
-  --glow-2: rgba(14, 165, 233, 0.06);
+  --glow-1: rgba(99, 102, 241, 0.14);
+  --glow-2: rgba(74, 144, 226, 0.12);
+  --glow-3: rgba(167, 139, 250, 0.1);
 }
 
 .dark {
@@ -40,8 +48,11 @@
   --surface-elevated: #1a2029;
   --border-subtle: rgba(148, 163, 184, 0.16);
   --ring: rgba(56, 189, 248, 0.5);
-  --accent: #38bdf8;
-  --accent-muted: rgba(56, 189, 248, 0.15);
+  --accent: #5ba3eb;
+  --accent-muted: rgba(91, 163, 235, 0.18);
+  --shell-bg: rgba(21, 26, 34, 0.82);
+  --shell-border: rgba(148, 163, 184, 0.12);
+  --column-divider: rgba(148, 163, 184, 0.1);
   --hover-row: rgba(255, 255, 255, 0.05);
   --focus-ring: rgba(125, 211, 252, 0.45);
   --topbar-bg: #12161d;
@@ -80,8 +91,40 @@ body {
   background-color: var(--background);
   background-image:
     radial-gradient(900px 500px at 0% 0%, var(--glow-1), transparent 50%),
-    radial-gradient(700px 400px at 100% 0%, var(--glow-2), transparent 45%);
+    radial-gradient(700px 400px at 100% 0%, var(--glow-2), transparent 45%),
+    radial-gradient(600px 500px at 50% 100%, var(--glow-3), transparent 55%);
   background-attachment: fixed;
+}
+
+.reader-shell {
+  background: var(--shell-bg);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-shell);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(var(--shell-blur));
+  -webkit-backdrop-filter: blur(var(--shell-blur));
+}
+
+.reader-column-panel {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-subtle);
+}
+
+.ui-input-search {
+  border-radius: var(--radius-pill);
+  padding-left: 2.5rem;
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+}
+
+.ui-button-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow-sm);
 }
 
 .dark body {

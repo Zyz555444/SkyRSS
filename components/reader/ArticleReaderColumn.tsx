@@ -1,19 +1,16 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { AppButton } from "@/components/ui/glass";
 import { cn } from "@/lib/cn";
 import { ArticleBody } from "@/components/reader/ArticleBody";
+import { formatRelativeTimeZh } from "@/lib/format-relative-time";
 import type { RssItemView } from "@/types/rss";
 
-function formatArticleDate(item: RssItemView): string | null {
+function metaLabel(item: RssItemView): string {
   const raw = item.isoDate || item.pubDate;
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
+  const time = raw ? formatRelativeTimeZh(raw) : null;
+  return time ? `${item.feedTitle} · ${time}` : item.feedTitle;
 }
 
 type ArticleReaderColumnProps = {
@@ -29,60 +26,45 @@ export function ArticleReaderColumn({
   mobileShowReader,
   onBack,
 }: ArticleReaderColumnProps) {
-  const activeDateLabel = item ? formatArticleDate(item) : null;
-
   return (
     <section
       className={cn(
-        "ui-surface flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-xl border",
+        "reader-column-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden shadow-none",
         "min-h-[min(70dvh,560px)] lg:min-h-0",
         !isLargeScreen && (!item || !mobileShowReader) && "hidden",
       )}
     >
       {item ? (
         <>
-          <div className="sticky top-0 z-10 shrink-0 border-b border-[color:var(--border-subtle)] bg-[color:var(--surface)] px-4 py-3">
+          <div className="shrink-0 px-6 pb-4 pt-6 lg:px-8 lg:pt-8">
             {!isLargeScreen && mobileShowReader ? (
-              <div className="mb-2">
-                <AppButton
-                  type="button"
-                  variant="ghost"
-                  className="w-full text-sm sm:w-auto"
-                  onClick={onBack}
-                >
-                  ← 返回列表
-                </AppButton>
-              </div>
+              <AppButton
+                type="button"
+                variant="ghost"
+                className="mb-3 -ml-2 text-sm"
+                onClick={onBack}
+              >
+                ← 返回列表
+              </AppButton>
             ) : null}
-            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--muted)]">
-              阅读
-            </p>
-            <h3 className="mt-1 text-lg font-semibold leading-snug text-[color:var(--text)]">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-[color:var(--text)] lg:text-[1.65rem]">
               {item.title}
-            </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
-              <span>{item.feedTitle}</span>
-              {activeDateLabel ? (
-                <>
-                  <span className="opacity-40" aria-hidden>
-                    ·
-                  </span>
-                  <span>{activeDateLabel}</span>
-                </>
-              ) : null}
+            </h1>
+            <p className="mt-3 text-sm text-[color:var(--muted)]">
+              {metaLabel(item)}
               {item.author ? (
                 <>
-                  <span className="opacity-40" aria-hidden>
+                  <span className="mx-1 opacity-40" aria-hidden>
                     ·
                   </span>
-                  <span>{item.author}</span>
+                  {item.author}
                 </>
               ) : null}
-            </div>
+            </p>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="article-reading-shell px-4 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 lg:px-8">
+            <div className="article-reading-shell max-w-none py-2 pb-6">
               <ArticleBody
                 html={item.contentHtml}
                 fallbackSnippet={item.contentSnippet}
@@ -91,25 +73,26 @@ export function ArticleReaderColumn({
           </div>
 
           {item.link ? (
-            <div className="shrink-0 border-t border-[color:var(--border-subtle)] px-4 py-3">
+            <div className="shrink-0 px-6 py-5 lg:px-8">
               <a
                 href={item.link}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="reader-primary-cta inline-flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-center text-sm font-medium no-underline transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
+                className="reader-primary-cta inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-center text-sm font-medium no-underline transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]"
               >
+                <ExternalLink className="h-4 w-4" aria-hidden />
                 在浏览器中打开原文
               </a>
             </div>
           ) : null}
         </>
       ) : (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-          <p className="text-sm font-medium text-[color:var(--text)]">
+        <div className="flex flex-1 flex-col items-center justify-center px-8 py-16 text-center">
+          <p className="text-base font-medium text-[color:var(--text)]">
             选择一篇文章开始阅读
           </p>
-          <p className="mt-2 max-w-xs text-sm text-[color:var(--muted)]">
-            从左侧列表中选择条目，正文将显示在此处。
+          <p className="mt-2 max-w-xs text-sm leading-relaxed text-[color:var(--muted)]">
+            从列表中选择条目，正文将显示在此处。
           </p>
         </div>
       )}

@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { SignInButton, UserButton } from "@clerk/nextjs";
+import { CheckCircle2, Moon, RefreshCw, Sun } from "lucide-react";
 import { SkyRssIcon, SkyRssLogo } from "@/components/brand/SkyRssBrand";
-import { AppButton, AppInput } from "@/components/ui/glass";
+import { AppButton, SearchInput } from "@/components/ui/glass";
 import { cn } from "@/lib/cn";
 
 type ReaderTopBarProps = {
@@ -11,10 +12,10 @@ type ReaderTopBarProps = {
   onRefresh: () => void;
   onMarkAllRead: () => void;
   onToggleTheme: () => void;
-  onOpenSubscriptions: () => void;
   isDark: boolean;
   refreshDisabled?: boolean;
   authSlot: import("react").ReactNode;
+  showDesktop?: boolean;
 };
 
 export function ReaderTopBar({
@@ -23,35 +24,27 @@ export function ReaderTopBar({
   onRefresh,
   onMarkAllRead,
   onToggleTheme,
-  onOpenSubscriptions,
   isDark,
   refreshDisabled,
   authSlot,
+  showDesktop = true,
 }: ReaderTopBarProps) {
+  if (!showDesktop) return null;
+
   return (
-    <header
-      className={cn(
-        "flex shrink-0 flex-wrap items-center gap-2 border-b border-[color:var(--border-subtle)] px-3 py-2.5 md:gap-3 md:px-4",
-        "bg-[color:var(--topbar-bg)]",
-      )}
-    >
-      <div className="flex min-w-0 shrink-0 items-center gap-2 text-[color:var(--text)]">
-        <SkyRssLogo className="hidden h-8 w-auto sm:block" aria-hidden />
-        <SkyRssIcon className="h-8 w-8 sm:hidden" aria-hidden />
-        <span className="sr-only">SkyRSS</span>
-        <AppButton
-          type="button"
-          className="hidden h-9 shrink-0 px-3 text-sm sm:inline-flex"
-          onClick={onOpenSubscriptions}
-        >
-          订阅
-        </AppButton>
+    <header className="hidden shrink-0 items-center gap-4 border-b border-[color:var(--column-divider)] px-5 py-3 lg:flex">
+      <div className="flex min-w-0 shrink-0 items-center gap-2.5">
+        <SkyRssIcon className="h-9 w-9" aria-hidden />
+        <SkyRssLogo className="hidden h-8 w-auto xl:block" aria-hidden />
+        <span className="text-lg font-bold tracking-tight">
+          <span className="text-[color:var(--text)]">Sky</span>
+          <span className="text-[color:var(--accent)]">RSS</span>
+        </span>
       </div>
 
-      <div className="order-last flex w-full min-w-0 sm:order-none sm:flex-1 sm:justify-center">
-        <AppInput
-          type="search"
-          className="max-w-xl sm:mx-auto"
+      <div className="flex min-w-0 flex-1 justify-center px-4">
+        <SearchInput
+          className="max-w-xl"
           placeholder="搜索订阅或文章"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -59,43 +52,39 @@ export function ReaderTopBar({
         />
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1.5">
         <AppButton
           type="button"
-          className="h-9 shrink-0 px-2.5 text-sm sm:hidden"
-          onClick={onOpenSubscriptions}
-        >
-          订阅
-        </AppButton>
-        <AppButton
-          type="button"
-          variant="ghost"
-          className="h-9 w-9 shrink-0 rounded-lg p-0"
+          variant="icon"
           title="全部标为已读"
           onClick={onMarkAllRead}
         >
-          ✓
+          <CheckCircle2 className="h-4 w-4" />
         </AppButton>
         <AppButton
           type="button"
-          variant="ghost"
-          className="h-9 w-9 shrink-0 rounded-lg p-0"
+          variant="icon"
           title="刷新"
           disabled={refreshDisabled}
           onClick={onRefresh}
         >
-          ↻
+          <RefreshCw
+            className={cn("h-4 w-4", refreshDisabled && "animate-spin")}
+          />
         </AppButton>
         <AppButton
           type="button"
-          variant="ghost"
-          className="h-9 w-9 shrink-0 rounded-lg p-0"
+          variant="icon"
           title={isDark ? "浅色模式" : "深色模式"}
           onClick={onToggleTheme}
         >
-          {isDark ? "☀" : "☾"}
+          {isDark ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
         </AppButton>
-        <div className="flex items-center pl-0.5">{authSlot}</div>
+        <div className="ml-1 flex items-center">{authSlot}</div>
       </div>
     </header>
   );
@@ -124,3 +113,4 @@ export function ReaderAuthSlot({
   }
   return <UserButton />;
 }
+

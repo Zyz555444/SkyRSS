@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const focusRing =
@@ -25,7 +26,9 @@ export function AppButton({
   variant = "default",
   children,
   ...rest
-}: ComponentProps<"button"> & { variant?: "default" | "primary" | "ghost" }) {
+}: ComponentProps<"button"> & {
+  variant?: "default" | "primary" | "ghost" | "icon";
+}) {
   return (
     <button
       type="button"
@@ -34,6 +37,7 @@ export function AppButton({
         variant === "primary" && "glass-button-primary",
         variant === "ghost" &&
           "border-transparent bg-transparent shadow-none hover:bg-[color:var(--hover-row)]",
+        variant === "icon" && "ui-button-icon",
         focusRing,
         "disabled:pointer-events-none disabled:opacity-45",
         className,
@@ -45,17 +49,43 @@ export function AppButton({
   );
 }
 
-export function AppInput({ className, ...rest }: ComponentProps<"input">) {
+export function AppInput({
+  className,
+  variant = "default",
+  ...rest
+}: ComponentProps<"input"> & { variant?: "default" | "search" }) {
   return (
     <input
       className={cn(
-        "ui-input w-full rounded-lg border px-3 py-2 text-sm transition-[border-color,box-shadow]",
+        "ui-input w-full border px-3 py-2 text-sm transition-[border-color,box-shadow]",
         "placeholder:text-[color:var(--muted)]",
+        variant === "default" && "rounded-lg",
+        variant === "search" && "ui-input-search",
         focusRing,
         className,
       )}
       {...rest}
     />
+  );
+}
+
+type SearchInputProps = Omit<ComponentProps<"input">, "type"> & {
+  containerClassName?: string;
+};
+
+export function SearchInput({
+  className,
+  containerClassName,
+  ...rest
+}: SearchInputProps) {
+  return (
+    <div className={cn("relative w-full", containerClassName)}>
+      <Search
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted)]"
+        aria-hidden
+      />
+      <AppInput variant="search" className={className} type="search" {...rest} />
+    </div>
   );
 }
 

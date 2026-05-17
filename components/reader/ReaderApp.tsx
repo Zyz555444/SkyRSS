@@ -16,8 +16,11 @@ import {
   type ListRow,
 } from "@/components/reader/ArticleListColumnOptimized";
 import { ArticleReaderColumn } from "@/components/reader/ArticleReaderColumn";
-import { ReaderSidebar } from "@/components/reader/ReaderSidebar";
 import { ReaderAuthSlot, ReaderTopBar } from "@/components/reader/ReaderTopBar";
+import { ReaderShell } from "@/components/reader/ReaderShell";
+import { ReaderSidebarDesktop } from "@/components/reader/ReaderSidebarDesktop";
+import { ReaderSidebarMobile } from "@/components/reader/ReaderSidebarMobile";
+import { SubscriptionSettingsSheet } from "@/components/reader/SubscriptionSettingsSheet";
 import type { ReaderNav } from "@/components/reader/types";
 import { cn } from "@/lib/cn";
 import {
@@ -226,6 +229,7 @@ export function ReaderApp() {
   const [error, setError] = useState<string | null>(null);
 
   const [newFolderName, setNewFolderName] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
 
   const isDark = useSyncExternalStore(
     subscribeStoredTheme,
@@ -384,6 +388,19 @@ export function ReaderApp() {
     return map;
   }, [mergedItems, getReaderRow]);
 
+  const unreadByFolderId = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const it of mergedItems) {
+      const feed = feeds.find((f) => f.id === it.subscriptionId);
+      if (!feed?.folderId) continue;
+      const row = getReaderRow(it.subscriptionId, it.itemKey);
+      if (!row?.readAt) {
+        map[feed.folderId] = (map[feed.folderId] ?? 0) + 1;
+      }
+    }
+    return map;
+  }, [mergedItems, feeds, getReaderRow]);
+
   const readLaterCount = useMemo(
     () => readerItems.filter((r) => r.readLater).length,
     [readerItems],
@@ -413,16 +430,6 @@ export function ReaderApp() {
         row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
       const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
       return Boolean(getReaderRow(sid, key)?.favorite);
-    },
-    [getReaderRow],
-  );
-
-  const isReadLater = useCallback(
-    (row: ListRow) => {
-      const sid =
-        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
-      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
-      return Boolean(getReaderRow(sid, key)?.readLater);
     },
     [getReaderRow],
   );
@@ -468,25 +475,6 @@ export function ReaderApp() {
         row.kind === "rss"
           ? itemToPatch(row.item, { favorite: next })
           : snapshotToPatch(row.row, { favorite: next });
-      try {
-        await patchReaderItems([patch]);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "更新失败");
-      }
-    },
-    [getReaderRow, patchReaderItems],
-  );
-
-  const handleToggleReadLater = useCallback(
-    async (row: ListRow) => {
-      const sid =
-        row.kind === "rss" ? row.item.subscriptionId : row.row.subscriptionId;
-      const key = row.kind === "rss" ? row.item.itemKey : row.row.itemKey;
-      const next = !getReaderRow(sid, key)?.readLater;
-      const patch =
-        row.kind === "rss"
-          ? itemToPatch(row.item, { readLater: next })
-          : snapshotToPatch(row.row, { readLater: next });
       try {
         await patchReaderItems([patch]);
       } catch (e) {
@@ -600,25 +588,34 @@ export function ReaderApp() {
       }).format(new Date(lastUpdatedMs))}`
     : "";
 
+  const handleNav = useCallback((n: ReaderNav) => {
+    setNav(n);
+    setSidebarOpen(false);
+    setActiveItem(null);
+    setActiveKey(null);
+    setMobileShowReader(false);
+  }, []);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <ReaderTopBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onRefresh={handleRefresh}
-        onMarkAllRead={handleMarkAllRead}
-        onToggleTheme={() => setStoredThemeDark(!isDark)}
-        onOpenSubscriptions={() => setSidebarOpen(true)}
-        isDark={isDark}
-        refreshDisabled={mergeLoading}
-        authSlot={
-          <ReaderAuthSlot
-            clerkLoaded={clerkLoaded}
-            isSignedIn={Boolean(isSignedIn)}
-            authLoading={authLoading}
-          />
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 lg:p-4">
+      <ReaderShell>
+        <ReaderTopBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onRefresh={handleRefresh}
+          onMarkAllRead={() => void handleMarkAllRead()}
+          onToggleTheme={() => setStoredThemeDark(!isDark)}
+          isDark={isDark}
+          refreshDisabled={mergeLoading}
+          showDesktop={isLg}
+          authSlot={
+            <ReaderAuthSlot
+              clerkLoaded={clerkLoaded}
+              isSignedIn={Boolean(isSignedIn)}
+              authLoading={authLoading}
+            />
+          }
+        />
 
       {error ? (
         <div className="shrink-0 border-b border-rose-400/30 bg-rose-500/10 px-4 py-2 text-center text-sm text-rose-800 dark:text-rose-100">
@@ -633,83 +630,45 @@ export function ReaderApp() {
         </div>
       ) : null}
 
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-3 md:p-4">
-        <ReaderSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          nav={nav}
-          onNav={(n) => {
-            setNav(n);
-            setSidebarOpen(false);
-            setActiveItem(null);
-            setActiveKey(null);
-            setMobileShowReader(false);
-          }}
-          folders={folders}
-          feeds={feeds}
-          unreadTotal={unreadTotal}
-          unreadByFeedId={unreadByFeedId}
-          readLaterCount={readLaterCount}
-          favoritesCount={favoritesCount}
-          recentCount={recentCount}
-          newFolderName={newFolderName}
-          setNewFolderName={setNewFolderName}
-          onCreateFolder={() => void handleCreateFolder()}
-          onDeleteFolder={(id) => void handleDeleteFolder(id)}
-          onFeedFolderChange={(feedId, folderId) => {
-            void (async () => {
-              try {
-                await updateFeedFolder(feedId, folderId);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "更新失败");
-              }
-            })();
-          }}
-          onRemoveFeed={(id) => {
-            void (async () => {
-              try {
-                await removeFeed(id);
-                setNav((n) =>
-                  n.kind === "source" && n.sourceId === id
-                    ? { kind: "all" }
-                    : n,
-                );
-                if (activeItem?.subscriptionId === id) {
-                  setActiveItem(null);
-                  setActiveKey(null);
-                  setMobileShowReader(false);
-                }
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "删除失败");
-              }
-            })();
-          }}
-          onOpenAddFeed={() => {
-            setShowAddFeed(true);
-            setSidebarOpen(false);
-          }}
-          cloudLoading={cloudLoading || readerRemoteLoading}
-          cloudError={cloudError ?? readerRemoteError}
-        />
-
         <div
           className={cn(
-            "grid min-h-0 flex-1 gap-3 md:gap-4",
+            "grid min-h-0 flex-1 gap-3 p-3 lg:gap-4 lg:p-4",
             isLg
-              ? "grid-cols-[minmax(280px,38%)_1fr]"
+              ? "grid-cols-[minmax(220px,260px)_minmax(300px,38%)_1fr]"
               : "grid-cols-1",
           )}
         >
+          {isLg ? (
+            <ReaderSidebarDesktop
+              nav={nav}
+              onNav={handleNav}
+              folders={folders}
+              feeds={feeds}
+              unreadTotal={unreadTotal}
+              unreadByFolderId={unreadByFolderId}
+              unreadByFeedId={unreadByFeedId}
+              readLaterCount={readLaterCount}
+              favoritesCount={favoritesCount}
+              recentCount={recentCount}
+              onOpenAddFeed={() => setShowAddFeed(true)}
+              onOpenSettings={() => setShowSettings(true)}
+              cloudLoading={cloudLoading || readerRemoteLoading}
+              cloudError={cloudError ?? readerRemoteError}
+            />
+          ) : null}
+
           <ArticleListColumn
             title={listColumnTitle(nav, folders, feeds)}
+            nav={nav}
+            folders={folders}
+            feeds={feeds}
+            onNav={handleNav}
             rows={filteredRows}
             activeKey={activeKey}
             onSelectRow={(row) => void handleSelectRow(row)}
             isUnread={isUnread}
             onToggleFavorite={(row) => void handleToggleFavorite(row)}
-            onToggleReadLater={(row) => void handleToggleReadLater(row)}
             isFavorite={isFavorite}
-            isReadLater={isReadLater}
             mergeErrors={mergeErrors.map((e) => ({
               title: e.title,
               message: e.message,
@@ -721,6 +680,8 @@ export function ReaderApp() {
             onOpenMobileMenu={() => setSidebarOpen(true)}
             onRefresh={handleRefresh}
             updatedLabel={updatedLabel}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
 
           <ArticleReaderColumn
@@ -730,7 +691,72 @@ export function ReaderApp() {
             onBack={() => setMobileShowReader(false)}
           />
         </div>
-      </div>
+      </ReaderShell>
+
+      <ReaderSidebarMobile
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        nav={nav}
+        onNav={handleNav}
+        feeds={feeds}
+        unreadTotal={unreadTotal}
+        unreadByFeedId={unreadByFeedId}
+        readLaterCount={readLaterCount}
+        favoritesCount={favoritesCount}
+        recentCount={recentCount}
+        onOpenAddFeed={() => {
+          setShowAddFeed(true);
+          setSidebarOpen(false);
+        }}
+        onOpenSettings={() => {
+          setShowSettings(true);
+          setSidebarOpen(false);
+        }}
+        isDark={isDark}
+        onToggleTheme={() => setStoredThemeDark(!isDark)}
+        cloudLoading={cloudLoading || readerRemoteLoading}
+        cloudError={cloudError ?? readerRemoteError}
+      />
+
+      <SubscriptionSettingsSheet
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        feeds={feeds}
+        folders={folders}
+        newFolderName={newFolderName}
+        setNewFolderName={setNewFolderName}
+        onCreateFolder={() => void handleCreateFolder()}
+        onDeleteFolder={(id) => void handleDeleteFolder(id)}
+        onFeedFolderChange={(feedId, folderId) => {
+          void (async () => {
+            try {
+              await updateFeedFolder(feedId, folderId);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "更新失败");
+            }
+          })();
+        }}
+        onRemoveFeed={(id) => {
+          void (async () => {
+            try {
+              await removeFeed(id);
+              setNav((n) =>
+                n.kind === "source" && n.sourceId === id
+                  ? { kind: "all" }
+                  : n,
+              );
+              if (activeItem?.subscriptionId === id) {
+                setActiveItem(null);
+                setActiveKey(null);
+                setMobileShowReader(false);
+              }
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "删除失败");
+            }
+          })();
+        }}
+        unreadByFeedId={unreadByFeedId}
+      />
 
       {showAddFeed ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
