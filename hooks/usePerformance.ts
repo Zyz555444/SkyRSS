@@ -74,7 +74,7 @@ export function useVirtualScroll<T>(
     return () => {
       container.removeEventListener("scroll", updateVisibleItems);
     };
-  }, [itemHeight, overscan, containerRef]);
+  }, [itemHeight, overscan, containerRef, items]);
 
   return { visibleItems, totalHeight, offsetTop };
 }

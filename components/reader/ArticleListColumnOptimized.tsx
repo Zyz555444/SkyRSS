@@ -256,12 +256,6 @@ export function ArticleListColumn({
     return copy;
   }, [rows, sortMode, isUnread]);
 
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = 0;
-    }
-  }, [sortMode, rows]);
-
   const { visibleItems, totalHeight, offsetTop } = useVirtualScroll<ListRow>(
     sortedRows,
     ITEM_HEIGHT,
