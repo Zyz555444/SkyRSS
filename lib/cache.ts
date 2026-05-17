@@ -126,3 +126,49 @@ export function prefetchOnIdle(
     }, 100);
   }
 }
+
+export function prefetchNextPage<T>(
+  url: string,
+  options: RequestInit = {},
+  cacheKey?: string,
+): void {
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(
+      () => {
+        cachedFetch<T>(url, options, cacheKey).catch(console.warn);
+      },
+      { timeout: 1000 },
+    );
+  }
+}
+
+const prefetchQueue: Array<() => void> = [];
+let isProcessing = false;
+
+export function queuePrefetch(
+  url: string,
+  options: RequestInit = {},
+  cacheKey?: string,
+): void {
+  prefetchQueue.push(() => {
+    cachedFetch(url, options, cacheKey).catch(console.warn);
+  });
+  if (!isProcessing) {
+    processPrefetchQueue();
+  }
+}
+
+async function processPrefetchQueue(): Promise<void> {
+  if (prefetchQueue.length === 0) {
+    isProcessing = false;
+    return;
+  }
+
+  isProcessing = true;
+  const task = prefetchQueue.shift();
+  if (task) {
+    task();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    processPrefetchQueue();
+  }
+}

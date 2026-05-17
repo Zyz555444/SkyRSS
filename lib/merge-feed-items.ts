@@ -17,6 +17,53 @@ export type MergedFetchResult = {
 };
 
 const DEFAULT_CONCURRENCY = 4;
+const CACHE_TTL = 5 * 60 * 1000;
+
+type CacheEntry = {
+  timestamp: number;
+  items: RssItemView[];
+  errors: MergedFetchResult["errors"];
+};
+
+const mergeCache = new Map<string, CacheEntry>();
+const pendingRequests = new Map<string, Promise<MergedFetchResult>>();
+
+function generateCacheKey(subscriptions: SubscriptionRef[]): string {
+  return subscriptions
+    .map((s) => s.id)
+    .sort()
+    .join("|");
+}
+
+function getCached(subscriptions: SubscriptionRef[]): MergedFetchResult | null {
+  const key = generateCacheKey(subscriptions);
+  const entry = mergeCache.get(key);
+  if (!entry) return null;
+
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    mergeCache.delete(key);
+    return null;
+  }
+
+  return { items: entry.items, errors: entry.errors };
+}
+
+function setCached(
+  subscriptions: SubscriptionRef[],
+  result: MergedFetchResult,
+): void {
+  const key = generateCacheKey(subscriptions);
+  mergeCache.set(key, {
+    timestamp: Date.now(),
+    items: result.items,
+    errors: result.errors,
+  });
+
+  if (mergeCache.size > 50) {
+    const firstKey = mergeCache.keys().next().value;
+    if (firstKey) mergeCache.delete(firstKey);
+  }
+}
 
 async function mapInChunks<T, R>(
   items: T[],
@@ -44,60 +91,89 @@ export async function fetchFeedJsonClient(url: string): Promise<RssFeedJson> {
   return data as RssFeedJson;
 }
 
-/**
- * 并行拉取多个订阅（分块并发），合并条目并按发布时间降序。
- */
 export async function mergeFeedItems(
   subscriptions: SubscriptionRef[],
   options?: { fetchFeed?: FetchFeedFn; concurrency?: number },
 ): Promise<MergedFetchResult> {
+  const cached = getCached(subscriptions);
+  if (cached) {
+    return cached;
+  }
+
+  const key = generateCacheKey(subscriptions);
+  const pending = pendingRequests.get(key);
+  if (pending) {
+    return pending;
+  }
+
   const fetchFeed = options?.fetchFeed ?? fetchFeedJsonClient;
   const concurrency = Math.max(
     1,
     Math.min(8, options?.concurrency ?? DEFAULT_CONCURRENCY),
   );
 
-  if (subscriptions.length === 0) {
-    return { items: [], errors: [] };
-  }
-
-  const errors: MergedFetchResult["errors"] = [];
-
-  const payloads = await mapInChunks(
-    subscriptions,
-    concurrency,
-    async (sub) => {
-      try {
-        const feed = await fetchFeed(sub.url);
-        return { sub, feed, error: null as string | null };
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "加载失败";
-        errors.push({
-          subscriptionId: sub.id,
-          title: sub.title,
-          message,
-        });
-        return { sub, feed: null, error: message };
+  const promise = (async (): Promise<MergedFetchResult> => {
+    try {
+      if (subscriptions.length === 0) {
+        return { items: [], errors: [] };
       }
-    },
-  );
 
-  const items: RssItemView[] = [];
-  for (const { sub, feed } of payloads) {
-    if (!feed) continue;
-    const feedTitle = feed.title?.trim() || sub.title;
-    for (const raw of feed.items) {
-      const itemKey = computeItemKey(raw);
-      items.push({
-        ...raw,
-        subscriptionId: sub.id,
-        feedTitle,
-        itemKey,
-      });
+      const errors: MergedFetchResult["errors"] = [];
+
+      const payloads = await mapInChunks(
+        subscriptions,
+        concurrency,
+        async (sub) => {
+          try {
+            const feed = await fetchFeed(sub.url);
+            return { sub, feed, error: null as string | null };
+          } catch (e) {
+            const message = e instanceof Error ? e.message : "加载失败";
+            errors.push({
+              subscriptionId: sub.id,
+              title: sub.title,
+              message,
+            });
+            return { sub, feed: null, error: message };
+          }
+        },
+      );
+
+      const items: RssItemView[] = [];
+      for (const { sub, feed } of payloads) {
+        if (!feed) continue;
+        const feedTitle = feed.title?.trim() || sub.title;
+        for (const raw of feed.items) {
+          const itemKey = computeItemKey(raw);
+          items.push({
+            ...raw,
+            subscriptionId: sub.id,
+            feedTitle,
+            itemKey,
+          });
+        }
+      }
+
+      items.sort((a, b) => getItemTimestamp(b) - getItemTimestamp(a));
+
+      const result = { items, errors };
+      setCached(subscriptions, result);
+      return result;
+    } finally {
+      pendingRequests.delete(key);
     }
-  }
+  })();
 
-  items.sort((a, b) => getItemTimestamp(b) - getItemTimestamp(a));
+  pendingRequests.set(key, promise);
+  return promise;
+}
 
-  return { items, errors };
+export function clearMergeCache(): void {
+  mergeCache.clear();
+  pendingRequests.clear();
+}
+
+export function invalidateMergeCache(subscriptions: SubscriptionRef[]): void {
+  const key = generateCacheKey(subscriptions);
+  mergeCache.delete(key);
 }

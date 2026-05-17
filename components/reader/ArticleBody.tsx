@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useEffect } from "react";
 import renderMathInElement from "katex/contrib/auto-render";
 import "katex/dist/katex.min.css";
 
@@ -38,6 +38,55 @@ function applyKatex(root: HTMLElement) {
   });
 }
 
+function lazyLoadImages(root: HTMLElement) {
+  const images = Array.from(root.querySelectorAll("img"));
+  if (images.length === 0) return;
+
+  const imageObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const img = entry.target as HTMLImageElement;
+        if (img.dataset.src) {
+          img.src = img.dataset.src;
+          img.removeAttribute("data-src");
+        }
+        img.loading = "eager";
+        imageObserver.unobserve(img);
+      });
+    },
+    { rootMargin: "50px 0px", threshold: 0.01 },
+  );
+
+  images.forEach((img) => {
+    if (!img.loading) {
+      img.loading = "lazy";
+    }
+    if (!img.dataset.src && img.src) {
+      img.dataset.src = img.src;
+      img.src = "";
+    }
+    if (img.dataset.src || !img.src) {
+      imageObserver.observe(img);
+    }
+  });
+
+  return () => imageObserver.disconnect();
+}
+
+function processLazyImages(root: HTMLElement) {
+  const images = Array.from(root.querySelectorAll("img"));
+  images.forEach((img) => {
+    if (!img.loading) {
+      img.loading = "lazy";
+    }
+    if (img.src && !img.dataset.src) {
+      img.dataset.src = img.src;
+      img.src = "";
+    }
+  });
+}
+
 type ArticleBodyProps = {
   html?: string;
   fallbackSnippet?: string;
@@ -54,6 +103,13 @@ export function ArticleBody({ html, fallbackSnippet }: ArticleBodyProps) {
     const root = rootRef.current;
     if (!root) return;
     applyKatex(root);
+    processLazyImages(root);
+  }, [html, fallbackSnippet]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    return lazyLoadImages(root);
   }, [html, fallbackSnippet]);
 
   if (html) {

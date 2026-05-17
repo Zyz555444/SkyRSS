@@ -14,7 +14,7 @@ import {
   ArticleListColumn,
   listRowCompositeKey,
   type ListRow,
-} from "@/components/reader/ArticleListColumn";
+} from "@/components/reader/ArticleListColumnOptimized";
 import { ArticleReaderColumn } from "@/components/reader/ArticleReaderColumn";
 import { ReaderSidebar } from "@/components/reader/ReaderSidebar";
 import { ReaderAuthSlot, ReaderTopBar } from "@/components/reader/ReaderTopBar";
@@ -32,6 +32,7 @@ import { mergeFeedItems, type SubscriptionRef } from "@/lib/merge-feed-items";
 import { normalizeFeedUrlInput } from "@/lib/normalize-feed-url";
 import type { StoredFeed, StoredReaderItem } from "@/lib/reader-library-storage";
 import type { RssFeedJson, RssItemView } from "@/types/rss";
+import { useDebounce } from "@/hooks/usePerformance";
 
 const THEME_KEY = "skyrss-theme";
 const THEME_EVENT = "skyrss-theme-change";
@@ -210,6 +211,7 @@ export function ReaderApp() {
   const [lastUpdatedMs, setLastUpdatedMs] = useState<number | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 200);
   const [activeItem, setActiveItem] = useState<RssItemView | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
@@ -341,7 +343,7 @@ export function ReaderApp() {
       : rssRows;
 
   const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     if (!q) return baseRows;
     return baseRows.filter((row) => {
       const title =
@@ -355,7 +357,7 @@ export function ReaderApp() {
       const hay = `${title}\n${src}\n${sn}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [baseRows, searchQuery]);
+  }, [baseRows, debouncedSearchQuery]);
 
   const unreadWhenOnAll = useMemo(() => {
     if (nav.kind !== "all") return null;
